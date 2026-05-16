@@ -421,6 +421,19 @@ input{font-family:'Inter',sans-serif;}
   .podium{gap:4px;}
   .badges-wrap{grid-template-columns:repeat(3,1fr);}
 }
+
+/* ── AUTH ─────────────────────────────────────────────────── */
+.auth-screen{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg);}
+.auth-card{background:var(--surf);border:1px solid var(--border2);border-radius:var(--r2);padding:36px 32px;width:min(400px,90vw);display:flex;flex-direction:column;gap:18px;}
+.auth-logo{text-align:center;}
+.auth-tabs{display:flex;background:var(--surf2);border-radius:var(--r);padding:3px;gap:3px;}
+.auth-tab{flex:1;padding:8px;border:none;border-radius:6px;background:none;color:var(--text2);font-weight:600;font-size:.85rem;cursor:pointer;transition:background .15s,color .15s;}
+.auth-tab-active{background:var(--surf);color:var(--text);}
+.auth-field{display:flex;flex-direction:column;gap:6px;}
+.auth-field label{font-size:.78rem;font-weight:600;color:var(--text2);}
+.auth-error{color:var(--red);font-size:.78rem;text-align:center;}
+.auth-success{color:var(--green);font-size:.78rem;text-align:center;}
+.auth-divider{text-align:center;font-size:.75rem;color:var(--text3);margin:2px 0;}
 </style>
 </head>
 <body>
@@ -428,6 +441,7 @@ input{font-family:'Inter',sans-serif;}
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <!-- Game Logic -->
 <script>
@@ -618,6 +632,77 @@ const GL = (() => {
 
 <!-- React Components -->
 <script type="text/babel">
+
+// ══ SUPABASE ══
+const sb = supabase.createClient(
+  'https://dtemxsvjkxgncvdpjtwg.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0ZW14c3Zqa3hnbmN2ZHBqdHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NDc1NTUsImV4cCI6MjA5NDUyMzU1NX0.SYiVjqax2tjJHE4qbpODnTGKu7LoELhNxYyAq_TuvDM'
+);
+
+// ══ AUTH SCREEN ══
+function AuthScreen() {
+  const [tab,  setTab]  = React.useState('login');
+  const [email,setEmail]= React.useState('');
+  const [pass, setPass] = React.useState('');
+  const [nick, setNick] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [error,   setError]   = React.useState('');
+  const [success, setSuccess] = React.useState('');
+
+  async function submit() {
+    setError(''); setLoading(true);
+    try {
+      if(tab==='login') {
+        const {error:e} = await sb.auth.signInWithPassword({email,password:pass});
+        if(e) setError(e.message==='Invalid login credentials'?'Неверный email или пароль':e.message);
+      } else {
+        if(!email||!pass) { setError('Заполни все поля'); setLoading(false); return; }
+        const {data,error:e} = await sb.auth.signUp({email,password:pass,options:{data:{username:nick||email.split('@')[0]}}});
+        if(e) setError(e.message);
+        else if(data.user) {
+          await sb.from('profiles').upsert({id:data.user.id,username:nick||email.split('@')[0]});
+          setSuccess('Аккаунт создан! Входим…');
+        }
+      }
+    } catch(e) { setError('Ошибка соединения'); }
+    setLoading(false);
+  }
+
+  return (
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <div style={{fontSize:'2.5rem',color:'var(--primary)'}}>◈</div>
+          <div style={{fontSize:'1.4rem',fontWeight:800,marginTop:6}}>Шашки</div>
+          <div style={{fontSize:'.8rem',color:'var(--text2)',marginTop:4}}>Войди чтобы сохранять прогресс</div>
+        </div>
+        <div className="auth-tabs">
+          <button className={`auth-tab ${tab==='login'?'auth-tab-active':''}`} onClick={()=>{setTab('login');setError('');}}>Войти</button>
+          <button className={`auth-tab ${tab==='signup'?'auth-tab-active':''}`} onClick={()=>{setTab('signup');setError('');}}>Регистрация</button>
+        </div>
+        {tab==='signup'&&(
+          <div className="auth-field">
+            <label>Никнейм</label>
+            <input className="text-input" placeholder="Твой игровой ник" value={nick} onChange={e=>setNick(e.target.value)}/>
+          </div>
+        )}
+        <div className="auth-field">
+          <label>Email</label>
+          <input className="text-input" type="email" placeholder="email@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+        </div>
+        <div className="auth-field">
+          <label>Пароль</label>
+          <input className="text-input" type="password" placeholder="••••••••" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submit()}/>
+        </div>
+        {error&&<div className="auth-error">{error}</div>}
+        {success&&<div className="auth-success">{success}</div>}
+        <button className="btn-primary" onClick={submit} disabled={loading} style={{opacity:loading?.6:1}}>
+          {loading?'Загрузка…':tab==='login'?'Войти →':'Создать аккаунт →'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ══ CONSTANTS ══
 const ARENAS = [
@@ -1284,7 +1369,7 @@ function LeaderboardScreen({ user, navigate }) {
 }
 
 // ══ PROFILE ══
-function ProfileScreen({ user, navigate }) {
+function ProfileScreen({ user, navigate, onSignOut }) {
   const [tab,setTab]=React.useState('stats');
   const wr=Math.round(user.wins/Math.max(user.wins+user.losses,1)*100);
   return(
@@ -1327,6 +1412,9 @@ function ProfileScreen({ user, navigate }) {
             ))}
           </div>
         )}
+        <button className="btn-ghost" onClick={onSignOut} style={{marginTop:16,color:'var(--red)',borderColor:'rgba(248,113,113,.2)'}}>
+          Выйти из аккаунта
+        </button>
       </div>
     </div>
   );
@@ -1417,7 +1505,7 @@ function FriendsScreen({ navigate, user }) {
 }
 
 // ══ SIDEBAR ══
-function Sidebar({ screen, navigate, user }) {
+function Sidebar({ screen, navigate, user, onSignOut }) {
   const items = [
     { id:'home',        icon:'♟',  label:'Играть'  },
     { id:'learn',       icon:'🎓', label:'Учёба'   },
@@ -1448,6 +1536,9 @@ function Sidebar({ screen, navigate, user }) {
         </div>
         {user.streak>0&&<span className="sb-streak">🔥{user.streak}</span>}
       </div>
+      <button onClick={onSignOut} style={{margin:'8px',background:'none',border:'none',color:'var(--text3)',fontSize:'.75rem',padding:'6px',borderRadius:'6px',textAlign:'left',cursor:'pointer'}} onMouseOver={e=>e.target.style.color='var(--red)'} onMouseOut={e=>e.target.style.color='var(--text3)'}>
+        Выйти из аккаунта
+      </button>
     </aside>
   );
 }
@@ -1475,10 +1566,11 @@ function BottomNav({ screen, navigate }) {
 
 // ══ APP ══
 function App() {
-  const [screen, setScreen] = React.useState('home');
-  const [params, setParams] = React.useState({});
-  const [user,   setUser]   = React.useState({
-    name:'Игрок', cups:750, streak:7, wins:42, losses:18,
+  const [session, setSession] = React.useState(undefined);
+  const [screen,  setScreen]  = React.useState('home');
+  const [params,  setParams]  = React.useState({});
+  const [user,    setUser]    = React.useState({
+    name:'Игрок', cups:750, streak:0, wins:0, losses:0,
     avatar:'😊', isPro:false, streakShield:false,
     ownedItems:['standard_emoji'],
     emojiPack:['👋','🎉','😱','🔥','💀','😅','🤝','👍'],
@@ -1486,33 +1578,91 @@ function App() {
   const [result, setResult] = React.useState(null);
   const [delta,  setDelta]  = React.useState(0);
 
+  React.useEffect(()=>{
+    sb.auth.getSession().then(({data:{session}})=>{
+      setSession(session||null);
+      if(session) loadProfile(session.user.id);
+    });
+    const {data:{subscription}} = sb.auth.onAuthStateChange((_,session)=>{
+      setSession(session||null);
+      if(session) loadProfile(session.user.id);
+    });
+    return ()=>subscription.unsubscribe();
+  },[]);
+
+  async function loadProfile(uid) {
+    const {data} = await sb.from('profiles').select('*').eq('id',uid).single();
+    if(data) setUser(u=>({...u,
+      name:data.username, cups:data.cups, streak:data.streak,
+      wins:data.wins, losses:data.losses, avatar:data.avatar||'😊',
+      ownedItems:data.owned_items||['standard_emoji'], isPro:data.is_pro||false,
+    }));
+  }
+
+  async function saveProfile(u) {
+    if(!session) return;
+    await sb.from('profiles').update({
+      username:u.name, cups:u.cups, streak:u.streak, wins:u.wins,
+      losses:u.losses, avatar:u.avatar, owned_items:u.ownedItems,
+      is_pro:u.isPro, updated_at:new Date().toISOString(),
+    }).eq('id',session.user.id);
+  }
+
+  async function saveGame(r, d) {
+    if(!session) return;
+    await sb.from('game_history').insert({
+      user_id:session.user.id,
+      opponent:params.opponent?.name||'Бот',
+      game_mode:r.gameMode||'ai',
+      winner:r.winner, cups_change:d,
+      moves:r.moves||0, duration:r.timer||0,
+    });
+  }
+
   function navigate(s,p={}){ setScreen(s); setParams(p); }
 
   function handleGameEnd(r) {
     const d=calcCups(r); setDelta(d); setResult(r);
-    setUser(u=>({...u,
-      cups:   Math.max(0,u.cups+d),
-      wins:   r.winner==='W'?u.wins+1:u.wins,
-      losses: r.winner!=='W'?u.losses+1:u.losses,
-      streak: r.winner==='W'?u.streak+1:Math.max(0,u.streak-(u.streakShield?0:1)),
-    }));
+    setUser(u=>{
+      const nu={...u,
+        cups:Math.max(0,u.cups+d),
+        wins:r.winner==='W'?u.wins+1:u.wins,
+        losses:r.winner!=='W'?u.losses+1:u.losses,
+        streak:r.winner==='W'?u.streak+1:Math.max(0,u.streak-(u.streakShield?0:1)),
+      };
+      saveProfile(nu);
+      saveGame(r,d);
+      return nu;
+    });
     navigate('postgame');
   }
+
   function handleResign() {
     handleGameEnd({winner:'B',moves:0,pCaps:0,aCaps:0,
       gameMode:params.gameMode||'ai',aiDifficulty:params.aiDifficulty||'medium'});
   }
+
   function handlePurchase(item) {
     if(user.cups<item.price) return;
-    setUser(u=>({...u,cups:u.cups-item.price,ownedItems:[...u.ownedItems,item.id]}));
+    setUser(u=>{ const nu={...u,cups:u.cups-item.price,ownedItems:[...u.ownedItems,item.id]}; saveProfile(nu); return nu; });
   }
+
+  async function handleSignOut() { await sb.auth.signOut(); setSession(null); }
+
+  if(session===undefined) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--bg)'}}>
+      <div style={{color:'var(--text2)'}}>Загрузка…</div>
+    </div>
+  );
+
+  if(session===null) return <AuthScreen/>;
 
   const arena  = getArena(user.cups);
   const isGame = screen==='game';
 
   return (
     <div className="app-shell">
-      {!isGame && <Sidebar screen={screen} navigate={navigate} user={user}/>}
+      {!isGame && <Sidebar screen={screen} navigate={navigate} user={user} onSignOut={handleSignOut}/>}
       <main className={`app-main${isGame?' app-main-game':''}`}>
         {screen==='home'        && <HomeScreen user={user} arena={arena} navigate={navigate}/>}
         {screen==='learn'       && <LearnScreen navigate={navigate}/>}
@@ -1532,7 +1682,7 @@ function App() {
         {screen==='postgame'    && <PostGameScreen result={result} cupsChange={delta} user={user} navigate={navigate}/>}
         {screen==='shop'        && <ShopScreen user={user} onPurchase={handlePurchase} navigate={navigate}/>}
         {screen==='leaderboard' && <LeaderboardScreen user={user} navigate={navigate}/>}
-        {screen==='profile'     && <ProfileScreen user={user} navigate={navigate}/>}
+        {screen==='profile'     && <ProfileScreen user={user} navigate={navigate} onSignOut={handleSignOut}/>}
         {screen==='clan'        && <ClanScreen navigate={navigate}/>}
         {!isGame && <BottomNav screen={screen} navigate={navigate}/>}
       </main>

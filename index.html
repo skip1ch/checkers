@@ -1054,7 +1054,7 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
               <div><strong>{pCaps}</strong><small>взято</small></div>
               <div><strong>{fmt(timer)}</strong><small>время</small></div>
             </div>
-            <button className="btn-primary" onClick={()=>onGameEnd({winner:gameOver,moves,pCaps,aCaps,gameMode,aiDifficulty,timer})}>
+            <button className="btn-primary" onClick={()=>onGameEnd({winner:gameOver,moves,pCaps,aCaps,gameMode,aiDifficulty,timer,moveLog})}>
               Продолжить →
             </button>
           </div>
@@ -1219,51 +1219,177 @@ function AIDifficultyScreen({ navigate }) {
 }
 
 // ══ MATCHMAKING ══
-function MatchmakingScreen({ navigate, user, arena, screenParams }) {
-  const mode=screenParams?.mode||'online';
-  const aiDiff=screenParams?.aiDifficulty||'medium';
-  const coach=screenParams?.coachMode||false;
-  const [dots,setDots]=React.useState(1);
-  const [found,setFound]=React.useState(false);
-  const [opp]=React.useState(()=>{
-    const pool=LEADERBOARD_DATA.filter(p=>Math.abs(p.cups-user.cups)<350);
-    return pool.length?pool[Math.floor(Math.random()*pool.length)]:LEADERBOARD_DATA[5];
-  });
+function MatchmakingScreen({ navigate, user, arena, screenParams, session }) {
+  const mode    = screenParams?.mode||'online';
+  const aiDiff  = screenParams?.aiDifficulty||'medium';
+  const coach   = screenParams?.coachMode||false;
+  const isOnline = mode==='online';
+
+  const [phase,       setPhase]       = React.useState('searching'); // searching|found|timeout
+  const [opp,         setOpp]         = React.useState(null);
+  const [dots,        setDots]        = React.useState(1);
+  const [timeLeft,    setTimeLeft]    = React.useState(60);
+  const [onlineCnt,   setOnlineCnt]   = React.useState(0);
+  const [searchCnt,   setSearchCnt]   = React.useState(0);
+  const [gamesCnt,    setGamesCnt]    = React.useState(0);
+
+  const matchedRef = React.useRef(false);
+  const mmChRef    = React.useRef(null);
+  const prChRef    = React.useRef(null);
+
+  // ── AI / daily mode: fake quick match ────────────────────────
   React.useEffect(()=>{
+    if(isOnline) return;
     const d=setInterval(()=>setDots(v=>v%3+1),500);
-    const f=setTimeout(()=>{setFound(true);clearInterval(d);},mode==='ai'?1000:2600+Math.random()*1000);
+    const delay=mode==='ai'?1000:2600+Math.random()*800;
+    const f=setTimeout(()=>{
+      clearInterval(d);
+      const oppData=mode==='ai'
+        ?{name:`Бот·${aiDiff==='easy'?'Новичок':aiDiff==='medium'?'Любитель':'Мастер'}`,avatar:'🤖',cups:0}
+        :{name:'Ежедневный соперник',avatar:'⚔️',cups:user.cups+Math.floor(Math.random()*200-100)};
+      setOpp(oppData); setPhase('found');
+    },delay);
     return()=>{clearInterval(d);clearTimeout(f);};
   },[]);
+
   React.useEffect(()=>{
-    if(!found) return;
+    if(phase!=='found'||isOnline) return;
     const t=setTimeout(()=>navigate('game',{
-      gameMode:mode==='ai'?'ai':'online',aiDifficulty:aiDiff,coachMode:coach,
-      opponent:mode==='ai'
-        ?{name:`Бот·${aiDiff==='easy'?'Новичок':aiDiff==='medium'?'Любитель':'Мастер'}`,avatar:'🤖',cups:0}
-        :opp,
+      gameMode:mode==='ai'?'ai':'online', aiDifficulty:aiDiff, coachMode:coach, opponent:opp,
     }),900);
     return()=>clearTimeout(t);
-  },[found]);
+  },[phase]);
+
+  // ── REAL online matchmaking ───────────────────────────────────
+  React.useEffect(()=>{
+    if(!isOnline) return;
+
+    // Count active recent games
+    const since=new Date(Date.now()-20*60*1000).toISOString();
+    sb.from('game_history').select('id',{count:'exact',head:true}).gte('created_at',since)
+      .then(({count})=>setGamesCnt(count||0));
+
+    // Global presence – tracks everyone online
+    const prCh=sb.channel('global-lobby',{config:{presence:{key:session?.user?.id||'anon'}}});
+    prChRef.current=prCh;
+    prCh.on('presence',{event:'sync'},()=>{
+      const all=Object.values(prCh.presenceState()).flat();
+      setOnlineCnt(all.length);
+      setSearchCnt(all.filter(u=>u.status==='searching').length);
+    });
+    prCh.subscribe(async s=>{
+      if(s==='SUBSCRIBED') await prCh.track({userId:session?.user?.id,name:user.name,status:'searching'});
+    });
+
+    // Matchmaking broadcast channel
+    const mmCh=sb.channel('matchmaking-v3',{config:{broadcast:{self:false}}});
+    mmChRef.current=mmCh;
+
+    const myId=session?.user?.id||'';
+
+    const sendSeek=()=>{
+      if(matchedRef.current) return;
+      mmCh.send({type:'broadcast',event:'seeking',payload:{userId:myId,name:user.name,avatar:user.avatar,cups:user.cups}});
+    };
+
+    mmCh.on('broadcast',{event:'seeking'},({payload})=>{
+      if(matchedRef.current||payload.userId===myId) return;
+      // Cup range check (±600)
+      if(Math.abs(payload.cups-user.cups)>600) return;
+      // Deterministic host: lexicographically larger userId becomes host (white)
+      if(myId<=payload.userId) return;
+      matchedRef.current=true;
+      const roomCode=Math.random().toString(36).slice(2,8).toUpperCase();
+      mmCh.send({type:'broadcast',event:'invite',payload:{toUserId:payload.userId,roomCode,fromName:user.name,fromAvatar:user.avatar,fromCups:user.cups}});
+      setOpp({name:payload.name,avatar:payload.avatar,cups:payload.cups});
+      setPhase('found');
+      setTimeout(()=>navigate('game',{gameMode:'multiplayer',myColor:'white',roomCode,opponent:{name:payload.name,avatar:payload.avatar}}),900);
+    });
+
+    mmCh.on('broadcast',{event:'invite'},({payload})=>{
+      if(matchedRef.current||payload.toUserId!==myId) return;
+      matchedRef.current=true;
+      setOpp({name:payload.fromName,avatar:payload.fromAvatar,cups:payload.fromCups});
+      setPhase('found');
+      setTimeout(()=>navigate('game',{gameMode:'multiplayer',myColor:'black',roomCode:payload.roomCode,opponent:{name:payload.fromName,avatar:payload.fromAvatar}}),900);
+    });
+
+    mmCh.subscribe(s=>{ if(s==='SUBSCRIBED') sendSeek(); });
+
+    const reBroadcast=setInterval(sendSeek,3000);
+    const dotsInt=setInterval(()=>setDots(v=>v%3+1),500);
+    const countdown=setInterval(()=>setTimeLeft(t=>{
+      if(t<=1){ if(!matchedRef.current) setPhase('timeout'); return 0; }
+      return t-1;
+    }),1000);
+
+    return()=>{
+      clearInterval(reBroadcast); clearInterval(dotsInt); clearInterval(countdown);
+      mmCh.unsubscribe(); prCh.unsubscribe();
+    };
+  },[isOnline]);
+
   return (
     <div className="inner-page center-page">
       <button className="back-link" onClick={()=>navigate('home')}>‹ Отмена</button>
-      {!found?(
+
+      {phase==='searching'&&(
         <div className="mm-wrap">
+          {isOnline&&(
+            <div style={{display:'flex',gap:20,marginBottom:10,padding:'10px 20px',background:'var(--surf)',border:'1px solid var(--border)',borderRadius:'var(--r2)'}}>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:'1.25rem',fontWeight:800,color:'var(--green)'}}>{onlineCnt}</div>
+                <div style={{fontSize:'.62rem',color:'var(--text3)',marginTop:2}}>в сети</div>
+              </div>
+              <div style={{width:1,background:'var(--border)'}}/>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:'1.25rem',fontWeight:800,color:'var(--primary)'}}>{searchCnt}</div>
+                <div style={{fontSize:'.62rem',color:'var(--text3)',marginTop:2}}>ищут игру</div>
+              </div>
+              <div style={{width:1,background:'var(--border)'}}/>
+              <div style={{textAlign:'center'}}>
+                <div style={{fontSize:'1.25rem',fontWeight:800,color:'var(--gold)'}}>{gamesCnt}</div>
+                <div style={{fontSize:'.62rem',color:'var(--text3)',marginTop:2}}>партий</div>
+              </div>
+            </div>
+          )}
           <div className="mm-rings">
             <div className="mmr r1"/><div className="mmr r2"/><div className="mmr r3"/>
-            <div className="mmr-ico">{mode==='ai'?'🤖':'🔍'}</div>
+            <div className="mmr-ico">{isOnline?'🔍':'🤖'}</div>
           </div>
-          <div className="mm-title">{mode==='ai'?'Готовим бота':'Ищем соперника'}{'·'.repeat(dots)}</div>
-          <div className="mm-sub">{mode==='ai'?`Уровень: ${aiDiff==='easy'?'Новичок':aiDiff==='medium'?'Любитель':'Мастер'}`:`${user.cups} кубков · ${arena.icon} ${arena.name}`}</div>
+          <div className="mm-title">{isOnline?'Поиск соперника':`Готовим бота`}{'·'.repeat(dots)}</div>
+          <div className="mm-sub">
+            {isOnline
+              ?`${user.cups} 🏆 · ${arena.icon} ${arena.name} · осталось ${timeLeft}с`
+              :`Уровень: ${aiDiff==='easy'?'Новичок':aiDiff==='medium'?'Любитель':'Мастер'}`
+            }
+          </div>
+          {isOnline&&searchCnt===0&&timeLeft<50&&(
+            <div style={{fontSize:'.74rem',color:'var(--text3)',marginTop:6}}>Сейчас мало игроков…</div>
+          )}
         </div>
-      ):(
+      )}
+
+      {phase==='found'&&opp&&(
         <div className="mm-wrap">
           <div className="found-check">✅</div>
           <div className="mm-title">Найден!</div>
           <div className="found-opp">
-            <span className="found-av">{mode==='ai'?'🤖':opp.avatar}</span>
-            <strong>{mode==='ai'?'Бот':opp.name}</strong>
-            {mode!=='ai'&&<span className="found-cups">{opp.cups} 🏆</span>}
+            <span className="found-av">{opp.avatar}</span>
+            <strong>{opp.name}</strong>
+            {opp.cups>0&&<span className="found-cups">{opp.cups} 🏆</span>}
+          </div>
+        </div>
+      )}
+
+      {phase==='timeout'&&(
+        <div className="mm-wrap">
+          <div style={{fontSize:'3rem'}}>😔</div>
+          <div className="mm-title">Никого нет онлайн</div>
+          <div className="mm-sub" style={{textAlign:'center',maxWidth:260}}>За 60 секунд соперник не найден. Сейчас мало игроков — попробуй позже или сыграй с ботом.</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:260,marginTop:14}}>
+            <button className="btn-primary" onClick={()=>navigate('matchmaking',{mode:'ai',aiDifficulty:'medium'})}>🤖 Сыграть с ботом</button>
+            <button className="btn-ghost" onClick={()=>navigate('home')}>На главную</button>
           </div>
         </div>
       )}
@@ -1271,36 +1397,165 @@ function MatchmakingScreen({ navigate, user, arena, screenParams }) {
   );
 }
 
+// ══ SMART GAME ANALYSIS ══
+function generateReview(result) {
+  const won = result?.winner==='W';
+  const pCaps=result?.pCaps||0, aCaps=result?.aCaps||0;
+  const moves=result?.moves||0, timer=result?.timer||0;
+  const aiDiff=result?.aiDifficulty||'medium', mode=result?.gameMode||'ai';
+  const log=result?.moveLog||[];
+
+  const total=pCaps+aCaps;
+  const eff=total>0?Math.round(pCaps/total*100):50;
+  const minsStr=`${String(Math.floor(timer/60)).padStart(2,'0')}:${String(timer%60).padStart(2,'0')}`;
+  const capStreak=log.reduce((acc,m)=>m.caps>0?(acc+1):0,0); // approx captures at end
+  const myCapMoves=log.filter(m=>m.white&&m.caps>0).length;
+  const opCapMoves=log.filter(m=>!m.white&&m.caps>0).length;
+
+  const tips=[];
+
+  // ── Capture efficiency ─────────────────────────────────────────────
+  if(won){
+    if(pCaps===0&&aCaps===0){
+      tips.push({icon:'🎯',title:'Позиционная победа',text:`Победа без взятий — редкость. Вы заблокировали все ходы противника чисто позиционно. Это высший пилотаж: создать патовую ситуацию, не размениваясь.`});
+    } else if(eff>=70){
+      tips.push({icon:'⚔️',title:'Тактическое доминирование',text:`Соотношение взятий ${pCaps}:${aCaps} (${eff}% эффективность) — вы стабильно создавали угрозы с нескольких направлений, не давая противнику ни секунды передышки.`});
+    } else if(eff>=50){
+      tips.push({icon:'⚖️',title:'Тактика',text:`Вы взяли ${pCaps} шашек, потеряв ${aCaps}. Небольшое преимущество, но его хватило. В следующий раз ищите позиции вилки — атака сразу двух шашек одним ходом.`});
+    } else {
+      tips.push({icon:'🎭',title:'Упорная победа',text:`Взятий у противника было больше (${aCaps} против ваших ${pCaps}), но вы нашли решающий момент. Победа в позиционно невыгодной ситуации говорит о хорошей интуиции.`});
+    }
+  } else {
+    if(eff<=30){
+      tips.push({icon:'🛡️',title:'Держите позицию компактно',text:`Вы взяли ${pCaps} против ${aCaps} — противник вас переиграл тактически. Избегайте изолированных шашек: шашка без соседа рядом — лёгкая добыча. Держите цепи из 2–3 шашек.`});
+    } else if(eff<=50){
+      tips.push({icon:'⚔️',title:'Почти равная борьба',text:`${pCaps} взятий с вашей стороны против ${aCaps} — вы боролись на равных. Исход решила одна-две тактические ошибки. Попробуйте режим AI-тренера — он подскажет в критические моменты.`});
+    } else {
+      tips.push({icon:'💡',title:'Вы взяли больше!',text:`Вы взяли ${pCaps} шашек против ${aCaps} у противника, но всё равно проиграли — значит, потеряли дамочную линию. Шашка в дамке стоит как три обычных. Жертвуйте шашки ради прохода в дамки.`});
+    }
+  }
+
+  // ── Tempo & game length ────────────────────────────────────────────
+  if(moves<40){
+    tips.push({icon:'⚡',title:'Молниеносная партия',text:won
+      ?`${moves} ходов за ${minsStr} — агрессивный старт сработал идеально. Вы не дали противнику развиться. Такой дебют называют "атакующим" — продолжайте изучать дебютные принципы.`
+      :`${moves} ходов — очень быстрое поражение. Ранние атаки в шашках рискованны: один неточный ход и позиция рушится. Сначала укрепите центр (клетки d4, e5, d6, e3), потом атакуйте.`
+    });
+  } else if(moves<70){
+    tips.push({icon:'📐',title:'Середина игры',text:won
+      ?`${moves} ходов — хорошо выдержанная партия. Вы правильно перешли из дебюта в миттельшпиль и не потеряли инициативу. ${myCapMoves>opCapMoves?'Ваши взятия были активнее — это ключ к победе.':''}`
+      :`${moves} ходов — партия решилась в середине. ${opCapMoves>myCapMoves?`Противник делал взятия чаще (${opCapMoves} vs ваших ${myCapMoves} ходов с взятием). `:''}Попробуйте занимать центральные диагонали в первые 10 ходов.`
+    });
+  } else {
+    tips.push({icon:'👑',title:'Эндшпиль',text:won
+      ?`${moves} ходов — долгая партия, победа в эндшпиле. Терпение и точность в финальной фазе — признак зрелого игрока. Дамки сыграли решающую роль.`
+      :`${moves} ходов — затяжной эндшпиль. Именно здесь часто решают дамки. Продвигайтесь к последней линии при первой возможности — даже ценой одной шашки.`
+    });
+  }
+
+  // ── Mode-specific insight ──────────────────────────────────────────
+  if(mode==='ai'){
+    if(won&&aiDiff==='hard'){
+      tips.push({icon:'🧠',title:'Вы обыграли алгоритм',text:`Бот-мастер просчитывает дерево из тысяч позиций на 5 ходов вперёд с alpha-beta отсечением. Ваша победа означает, что вы переиграли машину позиционно. Самое время попробовать онлайн-матчи против реальных людей!`});
+    } else if(won&&aiDiff==='medium'){
+      tips.push({icon:'🎯',title:'Следующий шаг',text:`Уровень "Любитель" пройден. Попробуйте "Мастера" — там бот думает на 5 ходов вперёд и почти никогда не ошибается. Готовы к вызову?`});
+    } else if(!won&&aiDiff==='easy'){
+      tips.push({icon:'📖',title:'Советы для роста',text:`Начните с раздела "Учёба" — урок про обязательное взятие и контроль центра сразу изменят уровень игры. Включите режим AI-тренера в следующей партии: он комментирует каждый ваш ход.`});
+    } else if(!won){
+      tips.push({icon:'🔄',title:'Анализ поражения',text:`Попробуйте переиграть эту партию с включённым AI-тренером — он будет подсказывать после каждого хода. Часто достаточно одного правильного совета в нужный момент, чтобы изменить исход.`});
+    }
+  } else if(mode==='multiplayer'){
+    tips.push({icon:'🌐',title:'Онлайн-опыт',text:won
+      ?`Победа над живым соперником ценнее, чем над ботом — человек непредсказуем. Ваш рейтинг растёт, продолжайте — следующий ранг ближе, чем кажется!`
+      :`Реальные соперники часто удивляют неожиданными ходами. Не расстраивайтесь — каждая онлайн-партия учит лучше, чем игра с ботом.`
+    });
+  }
+
+  return tips.slice(0,3);
+}
+
+// ── Performance score ──────────────────────────────────────────────────
+function calcScore(result){
+  const won=result?.winner==='W';
+  const pCaps=result?.pCaps||0, aCaps=result?.aCaps||0, moves=result?.moves||0;
+  const total=pCaps+aCaps;
+  const eff=total>0?pCaps/total:0.5;
+  let score=won?55:20;
+  score+=Math.round(eff*30);
+  if(moves<50) score+=8; else if(moves>100) score-=5;
+  if(won&&pCaps>aCaps*1.5) score+=7;
+  return Math.max(10,Math.min(100,score));
+}
+
 // ══ POST GAME ══
 function PostGameScreen({ result, cupsChange, user, navigate }) {
   const won=result?.winner==='W';
-  const ratio=(result?.pCaps||0)/Math.max((result?.pCaps||0)+(result?.aCaps||1),1);
-  const tips=won
-    ?[{icon:'🎯',t:'Позиция',d:'Вы умело контролировали диагонали — ключ к победе.'},{icon:'⚡',t:'Темп',d:'Активное продвижение к дамке ускоряет победу.'}]
-    :[{icon:'⚔️',t:'Активность',d:ratio<0.4?'Мало взятий. Создавайте угрозы с нескольких сторон.':'Координируйте атаки нескольких шашек.'},{icon:'🛡️',t:'Защита',d:'Держите шашки вместе — изолированные берутся легко.'},{icon:'👑',t:'Дамки',d:'Стремитесь провести шашку в дамки при первой возможности.'}];
+  const tips=generateReview(result);
+  const score=calcScore(result);
+  const pCaps=result?.pCaps||0, aCaps=result?.aCaps||0;
+  const total=pCaps+aCaps;
+  const eff=total>0?Math.round(pCaps/total*100):0;
+  const fmtTime=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const prevCups=result?.prevCups??user.cups;
+  const scoreColor=score>=75?'var(--green)':score>=50?'var(--primary)':score>=30?'var(--gold)':'var(--red)';
+
   return (
     <div className="inner-page">
       <div className="ip-body">
+        {/* Hero */}
         <div className="pg-hero">
           <div className="pg-result-icon">{won?'🏆':'💀'}</div>
           <h1 className="pg-title">{won?'Победа!':'Поражение'}</h1>
           <div className={`pg-delta ${won?'delta-up':'delta-dn'}`}>{cupsChange>0?'+':''}{cupsChange} 🏆</div>
-          <div className="pg-total">{result?.prevCups??user.cups} → {(result?.prevCups??user.cups)+cupsChange} кубков</div>
+          <div className="pg-total">{prevCups} → {prevCups+cupsChange} кубков</div>
         </div>
-        <div className="pg-stat-row">
-          <div className="pg-stat"><strong>{result?.moves||0}</strong><small>Ходов</small></div>
-          <div className="pg-stat"><strong>{result?.pCaps||0}</strong><small>Взято</small></div>
-          <div className="pg-stat"><strong>{String(Math.floor((result?.timer||0)/60)).padStart(2,'0')}:{String((result?.timer||0)%60).padStart(2,'0')}</strong><small>Время</small></div>
+
+        {/* Score bar */}
+        <div style={{background:'var(--surf)',border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'13px 16px',marginBottom:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7}}>
+            <span style={{fontSize:'.75rem',fontWeight:700,color:'var(--text2)'}}>Оценка партии</span>
+            <span style={{fontSize:'1.05rem',fontWeight:800,color:scoreColor}}>{score}/100</span>
+          </div>
+          <div style={{height:6,background:'var(--surf3)',borderRadius:99,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${score}%`,background:scoreColor,borderRadius:99,transition:'width .8s'}}/>
+          </div>
         </div>
-        <div className="coach-card">
-          <div className="cc-head"><span>👨‍🏫</span><span>Разбор AI-тренера</span></div>
-          {tips.map((t,i)=>(
-            <div key={i} className="cc-tip">
-              <span className="cc-tip-icon">{t.icon}</span>
-              <div><strong>{t.t}</strong><p>{t.d}</p></div>
+
+        {/* Stats grid */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:7,marginBottom:12}}>
+          {[
+            ['Ходов', result?.moves||0, ''],
+            ['Взято', pCaps, ''],
+            ['Потеряно', aCaps, ''],
+            ['Эффект.', `${eff}%`, ''],
+            ['Время', fmtTime(result?.timer||0), ''],
+            ['Серия', `${user.streak}🔥`, ''],
+            ['Кубков', user.cups, ''],
+            ['Партий', user.wins+(user.losses||0), ''],
+          ].map(([l,v])=>(
+            <div key={l} style={{background:'var(--surf)',border:'1px solid var(--border)',borderRadius:'var(--r)',padding:'9px 6px',textAlign:'center'}}>
+              <div style={{fontSize:'.95rem',fontWeight:700,color:'var(--primary)'}}>{v}</div>
+              <div style={{fontSize:'.6rem',color:'var(--text3)',marginTop:2}}>{l}</div>
             </div>
           ))}
         </div>
+
+        {/* AI Review */}
+        <div className="coach-card">
+          <div className="cc-head">
+            <span>👨‍🏫</span>
+            <span>Разбор партии</span>
+            <span style={{marginLeft:'auto',fontSize:'.68rem',color:'var(--text3)',fontWeight:400}}>на основе вашей игры</span>
+          </div>
+          {tips.map((t,i)=>(
+            <div key={i} className="cc-tip">
+              <span className="cc-tip-icon">{t.icon}</span>
+              <div><strong>{t.title}</strong><p>{t.text}</p></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Buttons */}
         <div className="pg-btns">
           <button className="btn-primary" onClick={()=>{
             const m=result?.gameMode;
@@ -1957,7 +2212,7 @@ function App() {
         {screen==='learn'       && <LearnScreen navigate={navigate}/>}
         {screen==='ai-select'   && <AIDifficultyScreen navigate={navigate}/>}
         {screen==='friends'     && <FriendsScreen navigate={navigate} user={user}/>}
-        {screen==='matchmaking' && <MatchmakingScreen user={user} arena={arena} navigate={navigate} screenParams={params}/>}
+        {screen==='matchmaking' && <MatchmakingScreen user={user} arena={arena} navigate={navigate} screenParams={params} session={session}/>}
         {screen==='game'        && (
           <GameScreen
             gameMode={params.gameMode||'ai'}

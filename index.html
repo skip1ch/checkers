@@ -1069,19 +1069,20 @@ function HomeScreen({ user, arena, navigate, session, theme, setTheme }) {
   const next = ARENAS[ARENAS.findIndex(a=>a.id===arena.id)+1];
   const pct  = next ? Math.min(100,Math.round(((user.cups-arena.min)/(next.min-arena.min))*100)) : 100;
   const streakScale = Math.min(1 + user.streak*0.05, 1.7);
-  const [recent, setRecent] = React.useState(RECENT_MATCHES);
+  const [recent, setRecent] = React.useState(null); // null = loading
 
   React.useEffect(()=>{
-    if(!session) return;
+    if(!session) { setRecent([]); return; }
     sb.from('game_history').select('opponent,game_mode,winner,cups_change').eq('user_id',session.user.id)
       .order('created_at',{ascending:false}).limit(5)
       .then(({data})=>{
-        if(data&&data.length>0) setRecent(data.map(g=>({
-          opp:g.opponent, mode:g.game_mode==='ai'?'С ботом':g.game_mode==='multiplayer'?'Онлайн':'Другой режим',
+        setRecent((data||[]).map(g=>({
+          opp:g.opponent,
+          mode:g.game_mode==='ai'?'С ботом':g.game_mode==='multiplayer'?'Онлайн':g.game_mode==='local'?'На одном экране':'Другой режим',
           win:g.winner==='W', delta:g.cups_change,
         })));
       });
-  },[session]);
+  },[session?.user?.id]);
 
   return (
     <div className="home-wrap">
@@ -1156,7 +1157,13 @@ function HomeScreen({ user, arena, navigate, session, theme, setTheme }) {
             </button>
           </div>
           <div className="quick-title" style={{marginTop:20}}>Последние партии</div>
-          {recent.map((m,i)=>(
+          {recent===null && <div style={{fontSize:'.78rem',color:'var(--text3)',padding:'8px 0'}}>Загрузка…</div>}
+          {recent!==null && recent.length===0 && (
+            <div style={{fontSize:'.8rem',color:'var(--text3)',padding:'12px 0',textAlign:'center'}}>
+              Ещё нет партий — сыграй первую! ♟️
+            </div>
+          )}
+          {recent!==null && recent.map((m,i)=>(
             <div key={i} className="recent-row">
               <div className={`rr-badge ${m.win?'rr-win':'rr-loss'}`}>{m.win?'В':'П'}</div>
               <div className="rr-info">

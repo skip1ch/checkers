@@ -1490,9 +1490,10 @@ const AVATARS=['😊','😎','🦊','🐯','🦁','🐺','🐸','🤖','👑','�
 function ProfileScreen({ user, navigate, onSignOut, onSaveProfile, session }) {
   const [tab,setTab]=React.useState('stats');
   const [editing,setEditing]=React.useState(false);
-  const [editName,setEditName]=React.useState(user.name);
-  const [editCity,setEditCity]=React.useState(user.city||'');
-  const [editAvatar,setEditAvatar]=React.useState(user.avatar);
+  const [editName,setEditName]=React.useState('');
+  const [editCity,setEditCity]=React.useState('');
+  const [editAvatar,setEditAvatar]=React.useState('😊');
+  const [saveStatus,setSaveStatus]=React.useState('');
   const [history,setHistory]=React.useState([]);
   const [histLoading,setHistLoading]=React.useState(false);
   const wr=Math.round(user.wins/Math.max(user.wins+user.losses,1)*100);
@@ -1504,10 +1505,21 @@ function ProfileScreen({ user, navigate, onSignOut, onSaveProfile, session }) {
       .then(({data})=>{ setHistory(data||[]); setHistLoading(false); });
   },[tab,session]);
 
-  function saveEdit(){
+  function openEdit(){
+    // Always sync from current user prop so we get fresh data from DB
+    setEditName(user.name);
+    setEditCity(user.city||'');
+    setEditAvatar(user.avatar);
+    setSaveStatus('');
+    setEditing(true);
+  }
+
+  async function saveEdit(){
     if(!editName.trim()) return;
-    onSaveProfile({...user,name:editName.trim(),avatar:editAvatar,city:editCity});
-    setEditing(false);
+    setSaveStatus('Сохраняем…');
+    await onSaveProfile({...user,name:editName.trim(),avatar:editAvatar,city:editCity.trim()});
+    setSaveStatus('Сохранено ✓');
+    setTimeout(()=>{ setEditing(false); setSaveStatus(''); },700);
   }
 
   return(
@@ -1515,10 +1527,11 @@ function ProfileScreen({ user, navigate, onSignOut, onSaveProfile, session }) {
       <div className="profile-hero">
         <div className="ph-av">{user.avatar}</div>
         <h2 className="ph-name">{user.name}</h2>
+        {session?.user?.email&&<div style={{fontSize:'.72rem',color:'var(--text3)',marginTop:2}}>✉️ {session.user.email}</div>}
         {user.city&&<div style={{fontSize:'.75rem',color:'var(--text2)'}}>📍 {user.city}</div>}
         {user.isPro&&<span className="pro-chip">⭐ PRO</span>}
         <div className="ph-cups">🏆 {user.cups} кубков</div>
-        <button className="ghost-btn" style={{marginTop:6}} onClick={()=>setEditing(v=>!v)}>
+        <button className="ghost-btn" style={{marginTop:6}} onClick={editing?()=>setEditing(false):openEdit}>
           {editing?'Отмена':'✏️ Редактировать'}
         </button>
       </div>
@@ -1540,7 +1553,9 @@ function ProfileScreen({ user, navigate, onSignOut, onSaveProfile, session }) {
               ))}
             </div>
           </div>
-          <button className="btn-primary" onClick={saveEdit}>Сохранить</button>
+          <button className="btn-primary" onClick={saveEdit} disabled={!!saveStatus} style={{opacity:saveStatus?0.7:1}}>
+            {saveStatus||'Сохранить'}
+          </button>
         </div>
       )}
 
@@ -1907,10 +1922,10 @@ function App() {
 
   async function handleSignOut() { await sb.auth.signOut(); setSession(null); }
 
-  function handleSaveProfile(updated) {
+  async function handleSaveProfile(updated) {
     setUser(u=>({...u,...updated}));
     if(!session) return;
-    sb.from('profiles').update({
+    await sb.from('profiles').update({
       username:updated.name, avatar:updated.avatar,
       city:updated.city||'', updated_at:new Date().toISOString(),
     }).eq('id',session.user.id);

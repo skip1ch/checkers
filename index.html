@@ -434,6 +434,29 @@ input{font-family:'Inter',sans-serif;}
 .auth-error{color:var(--red);font-size:.78rem;text-align:center;}
 .auth-success{color:var(--green);font-size:.78rem;text-align:center;}
 .auth-divider{text-align:center;font-size:.75rem;color:var(--text3);margin:2px 0;}
+
+/* ── LIGHT THEME ──────────────────────────────────────────── */
+body.light{
+  --bg:#f5f5f4; --surf:#ffffff; --surf2:#f5f5f4; --surf3:#e7e5e4; --surf4:#d6d3d1;
+  --border:rgba(0,0,0,0.07); --border2:rgba(0,0,0,0.13);
+  --text:#18181b; --text2:#52525b; --text3:#a1a1aa;
+  --primary:#0284c7; --primary-d:#0369a1; --primary-dim:rgba(2,132,199,0.09);
+  --green:#16a34a; --red:#dc2626; --gold:#b45309;
+}
+.theme-btn{background:none;border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;color:var(--text2);font-size:.82rem;cursor:pointer;transition:background .12s;white-space:nowrap;}
+.theme-btn:hover{background:var(--surf2);}
+
+/* ── MULTIPLAYER LOBBY ──────────────────────────────────────── */
+.mp-room-box{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r2);padding:18px;text-align:center;margin-bottom:14px;}
+.mp-code{font-size:2.2rem;font-weight:800;letter-spacing:.18em;color:var(--primary);font-variant-numeric:tabular-nums;}
+.mp-hint{font-size:.74rem;color:var(--text2);margin-top:6px;}
+.mp-divider{text-align:center;color:var(--text3);font-size:.78rem;margin:10px 0;}
+.mp-status{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:var(--primary-dim);border-radius:var(--r);font-size:.84rem;color:var(--primary);font-weight:600;}
+
+/* ── PROFILE EDIT ────────────────────────────────────────── */
+.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0;}
+.av-btn{background:var(--surf2);border:2px solid transparent;border-radius:var(--r);padding:6px;font-size:1.4rem;cursor:pointer;transition:border-color .12s;}
+.av-btn-sel{border-color:var(--primary);}
 </style>
 </head>
 <body>
@@ -779,8 +802,9 @@ const RECENT_MATCHES = [
 function getArena(cups) { return ARENAS.find(a=>cups>=a.min&&cups<=a.max)||ARENAS[0]; }
 function calcCups(r) {
   const won=r.winner==='W';
-  const m={easy:[15,5],medium:[25,10],hard:[40,20],online:[30,20],friend:[20,15]};
-  const [w,l]=(m[r.gameMode==='ai'?(r.aiDifficulty||'medium'):(r.gameMode||'online')]||[25,10]);
+  const m={easy:[15,5],medium:[25,10],hard:[40,20],online:[30,20],friend:[20,15],multiplayer:[30,20],local:[10,0]};
+  const key=r.gameMode==='ai'?(r.aiDifficulty||'medium'):(r.gameMode||'online');
+  const [w,l]=m[key]||[25,10];
   return won?w:-l;
 }
 
@@ -807,7 +831,7 @@ const COACH_LINES = {
 };
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 
-function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, opponent, onGameEnd, onResign }) {
+function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, opponent, myColor='white', roomCode, onGameEnd, onResign }) {
   const [board,    setBoard]    = React.useState(()=>GL.init());
   const [wt,       setWt]       = React.useState(true);
   const [sel,      setSel]      = React.useState(null);
@@ -828,6 +852,25 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
 
   const boardRef = React.useRef(board);
   boardRef.current = board;
+  const wtRef = React.useRef(wt);
+  wtRef.current = wt;
+  const chRef = React.useRef(null);
+  const isMP = gameMode==='multiplayer';
+  const isFlipped = isMP && myColor==='black';
+  const isMyTurn = isMP ? (myColor==='white' ? wt : !wt) : true;
+
+  React.useEffect(()=>{
+    if(!isMP || !roomCode) return;
+    const ch = sb.channel(`room-${roomCode}`,{config:{broadcast:{self:false}}});
+    chRef.current = ch;
+    ch.on('broadcast',{event:'move'},({payload})=>{
+      const opCwt = myColor==='white' ? false : true;
+      execMove(boardRef.current, payload.move, opCwt);
+    });
+    ch.on('broadcast',{event:'emoji'},({payload})=>addEmoji(payload.em,true));
+    ch.subscribe();
+    return ()=>ch.unsubscribe();
+  },[isMP,roomCode]);
 
   React.useEffect(()=>{
     const id=setInterval(()=>{ if(!gameOver) setTimer(t=>t+1); },1000);
@@ -836,11 +879,12 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
 
   const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 
-  function addEmoji(em, fromAI=false) {
+  function addEmoji(em, fromAI=false, broadcast=false) {
     const id=Date.now()+Math.random();
     setEmojis(prev=>[...prev,{id,em,x:15+Math.random()*70,fromAI}]);
     snd(400+Math.random()*300,'sine',.15,.2);
     setTimeout(()=>setEmojis(prev=>prev.filter(e=>e.id!==id)),2500);
+    if(broadcast && chRef.current) chRef.current.send({type:'broadcast',event:'emoji',payload:{em}});
   }
 
   function finishMove(b, m, cwt) {
@@ -854,17 +898,18 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
     if(over) setTimeout(()=>{ setGameOver(over); setCoachMsg(pick(over==='W'?COACH_LINES.win:COACH_LINES.lose)); if(over==='W') playWin(); },300);
   }
 
-  function execMove(b, m, cwt) {
+  function execMove(b, m, cwt, broadcast=false) {
     const isCap=m.caps.length>0;
     snd(isCap?180:440,isCap?'triangle':'sine',isCap?.15:.12,.15);
     if(cwt) setPCaps(p=>p+m.caps.length); else setACaps(p=>p+m.caps.length);
+    if(broadcast && chRef.current) chRef.current.send({type:'broadcast',event:'move',payload:{move:m}});
     if(isCap){ setCapAnim(new Set(m.caps.map(([r,c])=>`${r}${c}`))); setTimeout(()=>{ setCapAnim(new Set()); finishMove(b,m,cwt); },320); }
     else finishMove(b,m,cwt);
   }
 
   React.useEffect(()=>{
     const isAI=gameMode==='ai'||gameMode==='online';
-    if(!isAI||wt||gameOver) return;
+    if(!isAI||wt||gameOver||isMP||gameMode==='local') return;
     setAiThink(true);
     if(coachMode) setCoachMsg(pick(COACH_LINES.ai));
     const delay=aiDifficulty==='hard'?900+Math.random()*600:500+Math.random()*400;
@@ -877,11 +922,15 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
     return()=>clearTimeout(tid);
   },[wt,gameOver]);
 
-  function handleCell(r,c) {
-    if((gameMode==='ai'||gameMode==='online')&&!wt) return;
+  function handleCell(r, c) {
+    if(gameMode==='ai'||gameMode==='online') { if(!wt) return; }
+    if(isMP && !isMyTurn) return;
     if(gameOver||aiThink||capAnim.size>0) return;
     const p=board[r][c];
-    if(sel&&selMvs.some(m=>m.to[0]===r&&m.to[1]===c)){ execMove(board,selMvs.find(m=>m.to[0]===r&&m.to[1]===c),wt); return; }
+    if(sel&&selMvs.some(m=>m.to[0]===r&&m.to[1]===c)){
+      execMove(board,selMvs.find(m=>m.to[0]===r&&m.to[1]===c),wt,isMP);
+      return;
+    }
     const mine=wt?GL.isW(p):GL.isB(p);
     if(mine){ const pm=allMvs.filter(m=>m.from[0]===r&&m.from[1]===c); if(pm.length){ setSel([r,c]); setSelMvs(pm); } return; }
     setSel(null); setSelMvs([]);
@@ -890,7 +939,12 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
   const targets = new Set(selMvs.map(m=>`${m.to[0]}${m.to[1]}`));
   const lastSq  = lastMv?new Set([`${lastMv.from[0]}${lastMv.from[1]}`,`${lastMv.to[0]}${lastMv.to[1]}`]):new Set();
   const {w,wk,bl,bk} = GL.countPieces(board);
-  const opName=opponent?.name||(gameMode==='ai'?`Бот · ${aiDifficulty==='easy'?'Новичок':aiDifficulty==='medium'?'Любитель':'Мастер'}`:'Противник');
+  const myPc   = isFlipped ? {n:bl+bk,k:bk,sym:'⬛'} : {n:w+wk,k:wk,sym:'⬜'};
+  const opPc   = isFlipped ? {n:w+wk,k:wk,sym:'⬜'} : {n:bl+bk,k:bk,sym:'⬛'};
+  const opName=opponent?.name||(gameMode==='ai'?`Бот · ${aiDifficulty==='easy'?'Новичок':aiDifficulty==='medium'?'Любитель':'Мастер'}`:gameMode==='local'?'Игрок 2':'Противник');
+  const myName=gameMode==='local'?'Игрок 1':'Вы';
+  const waitingMsg=isMP?'⏳ Ход соперника':aiThink?'🤔 Думает…':'⏳ Ход противника';
+  const turnMsg=isMP?(isMyTurn?'⚡ Ваш ход':'⏳ Ход соперника'):gameMode==='local'?(wt?`⚡ Ход: Белые`:`⚡ Ход: Чёрные`):wt?'⚡ Ваш ход':waitingMsg;
 
   return (
     <div className="game-root">
@@ -903,7 +957,7 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
             <div className="pb-av-wrap"><span className="pb-av">{opponent?.avatar||'🤖'}</span></div>
             <div className="pb-info">
               <span className="pb-name">{opName}</span>
-              <span className="pb-sub">⬛ {bl+bk}{bk>0&&` · 👑×${bk}`}</span>
+              <span className="pb-sub">{opPc.sym} {opPc.n}{opPc.k>0&&` · 👑×${opPc.k}`}</span>
             </div>
           </div>
           {aiThink&&<div className="think-dots"><span/><span/><span/></div>}
@@ -912,7 +966,8 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
         <div className="board-outer">
           <div className="board">
             {Array.from({length:64},(_,i)=>{
-              const r=Math.floor(i/8), c=i%8;
+              const idx=isFlipped?63-i:i;
+              const r=Math.floor(idx/8), c=idx%8;
               const isDark=GL.dark(r,c), piece=board[r][c], k=`${r}${c}`;
               const isSel=sel&&sel[0]===r&&sel[1]===c;
               const isLast=lastSq.has(k), isTgt=isDark&&targets.has(k);
@@ -938,8 +993,8 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
           <div className="pb-left">
             <div className="pb-av-wrap"><span className="pb-av">😊</span></div>
             <div className="pb-info">
-              <span className="pb-name">Вы {wt&&!gameOver&&<span className="turn-dot">●</span>}</span>
-              <span className="pb-sub">⬜ {w+wk}{wk>0&&` · 👑×${wk}`}</span>
+              <span className="pb-name">{myName} {(isMP?isMyTurn:wt)&&!gameOver&&<span className="turn-dot">●</span>}</span>
+              <span className="pb-sub">{myPc.sym} {myPc.n}{myPc.k>0&&` · 👑×${myPc.k}`}</span>
             </div>
           </div>
           <div className="pb-actions">
@@ -950,7 +1005,7 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
         {emojiOpen&&(
           <div className="emoji-tray">
             {emojiPack.map(em=>(
-              <button key={em} className="em-btn" onClick={()=>{ addEmoji(em); setEmojiOpen(false); }}>{em}</button>
+              <button key={em} className="em-btn" onClick={()=>{ addEmoji(em,false,isMP); setEmojiOpen(false); }}>{em}</button>
             ))}
           </div>
         )}
@@ -963,8 +1018,8 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
           </div>
         ):(
           <div className="status-panel">
-            <div className={`status-pill ${wt?'st-yours':'st-theirs'}`}>
-              {gameOver?'🏁 Конец игры':wt?'⚡ Ваш ход':aiThink?'🤔 Думает…':'⏳ Ход противника'}
+            <div className={`status-pill ${(isMP?isMyTurn:(gameMode==='local'||wt))?'st-yours':'st-theirs'}`}>
+              {gameOver?'🏁 Конец игры':turnMsg}
             </div>
           </div>
         )}
@@ -1010,10 +1065,24 @@ function GameScreen({ gameMode, aiDifficulty, coachMode, arena, emojiPack, oppon
 }
 
 // ══ HOME ══
-function HomeScreen({ user, arena, navigate }) {
+function HomeScreen({ user, arena, navigate, session, theme, setTheme }) {
   const next = ARENAS[ARENAS.findIndex(a=>a.id===arena.id)+1];
   const pct  = next ? Math.min(100,Math.round(((user.cups-arena.min)/(next.min-arena.min))*100)) : 100;
   const streakScale = Math.min(1 + user.streak*0.05, 1.7);
+  const [recent, setRecent] = React.useState(RECENT_MATCHES);
+
+  React.useEffect(()=>{
+    if(!session) return;
+    sb.from('game_history').select('opponent,game_mode,winner,cups_change').eq('user_id',session.user.id)
+      .order('created_at',{ascending:false}).limit(5)
+      .then(({data})=>{
+        if(data&&data.length>0) setRecent(data.map(g=>({
+          opp:g.opponent, mode:g.game_mode==='ai'?'С ботом':g.game_mode==='multiplayer'?'Онлайн':'Другой режим',
+          win:g.winner==='W', delta:g.cups_change,
+        })));
+      });
+  },[session]);
+
   return (
     <div className="home-wrap">
       <div className="home-topbar">
@@ -1023,9 +1092,12 @@ function HomeScreen({ user, arena, navigate }) {
           <span className="huc-sep">·</span>
           <span className="huc-cups">🏆 {user.cups}</span>
         </div>
-        <div className="home-streak">
-          <span style={{fontSize:`${streakScale}rem`,filter:`drop-shadow(0 0 ${Math.min(user.streak/3,8)}px #f97316)`}}>🔥</span>
-          <span className="streak-label">{user.streak} дней</span>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div className="home-streak">
+            <span style={{fontSize:`${streakScale}rem`,filter:`drop-shadow(0 0 ${Math.min(user.streak/3,8)}px #f97316)`}}>🔥</span>
+            <span className="streak-label">{user.streak} дней</span>
+          </div>
+          <button className="theme-btn" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?'☀️':'🌙'}</button>
         </div>
       </div>
       <div className="home-body">
@@ -1070,9 +1142,13 @@ function HomeScreen({ user, arena, navigate }) {
               <span className="qa-icon">🤖</span>
               <div><strong>Игра с ботом</strong><small>3 уровня сложности</small></div>
             </button>
-            <button className="qa-btn" onClick={()=>navigate('friends')}>
+            <button className="qa-btn" onClick={()=>navigate('mp-lobby')}>
+              <span className="qa-icon">🌐</span>
+              <div><strong>С другом онлайн</strong><small>Комната по коду</small></div>
+            </button>
+            <button className="qa-btn" onClick={()=>navigate('game',{gameMode:'local',opponent:{name:'Игрок 2',avatar:'🎮'}})}>
               <span className="qa-icon">🤝</span>
-              <div><strong>С другом</strong><small>Пригласить соперника</small></div>
+              <div><strong>На одном экране</strong><small>Два игрока локально</small></div>
             </button>
             <button className="qa-btn" onClick={()=>navigate('matchmaking',{mode:'daily'})}>
               <span className="qa-icon">⚔️</span>
@@ -1080,9 +1156,9 @@ function HomeScreen({ user, arena, navigate }) {
             </button>
           </div>
           <div className="quick-title" style={{marginTop:20}}>Последние партии</div>
-          {RECENT_MATCHES.map((m,i)=>(
+          {recent.map((m,i)=>(
             <div key={i} className="recent-row">
-              <div className={`rr-badge ${m.win?'rr-win':'rr-loss'}`}>{m.win?'П':'П'}</div>
+              <div className={`rr-badge ${m.win?'rr-win':'rr-loss'}`}>{m.win?'В':'П'}</div>
               <div className="rr-info">
                 <span className="rr-opp">{m.opp}</span>
                 <span className="rr-mode">{m.mode}</span>
@@ -1202,7 +1278,7 @@ function PostGameScreen({ result, cupsChange, user, navigate }) {
           <div className="pg-result-icon">{won?'🏆':'💀'}</div>
           <h1 className="pg-title">{won?'Победа!':'Поражение'}</h1>
           <div className={`pg-delta ${won?'delta-up':'delta-dn'}`}>{cupsChange>0?'+':''}{cupsChange} 🏆</div>
-          <div className="pg-total">{user.cups} → {user.cups+cupsChange} кубков</div>
+          <div className="pg-total">{result?.prevCups??user.cups} → {(result?.prevCups??user.cups)+cupsChange} кубков</div>
         </div>
         <div className="pg-stat-row">
           <div className="pg-stat"><strong>{result?.moves||0}</strong><small>Ходов</small></div>
@@ -1219,7 +1295,12 @@ function PostGameScreen({ result, cupsChange, user, navigate }) {
           ))}
         </div>
         <div className="pg-btns">
-          <button className="btn-primary" onClick={()=>navigate('ai-select')}>Ещё раз</button>
+          <button className="btn-primary" onClick={()=>{
+            const m=result?.gameMode;
+            if(m==='multiplayer') navigate('mp-lobby');
+            else if(m==='local') navigate('game',{gameMode:'local',opponent:{name:'Игрок 2',avatar:'🎮'}});
+            else navigate('ai-select');
+          }}>Ещё раз</button>
           <button className="btn-ghost" onClick={()=>navigate('home')}>На главную</button>
         </div>
       </div>
@@ -1331,56 +1412,139 @@ function ShopScreen({ user, onPurchase, navigate }) {
 // ══ LEADERBOARD ══
 function LeaderboardScreen({ user, navigate }) {
   const [tab,setTab]=React.useState('global');
-  const myRank=LEADERBOARD_DATA.findIndex(p=>p.cups<user.cups)+1;
+  const [rows,setRows]=React.useState(LEADERBOARD_DATA);
+  const [loading,setLoading]=React.useState(true);
+
+  React.useEffect(()=>{
+    sb.from('profiles').select('username,cups,avatar,wins,losses').order('cups',{ascending:false}).limit(20)
+      .then(({data})=>{
+        if(data&&data.length>1){
+          setRows(data.map((p,i)=>({rank:i+1,name:p.username,cups:p.cups,avatar:p.avatar||'😊',arena:getArena(p.cups).name})));
+        }
+        setLoading(false);
+      });
+  },[]);
+
+  const top3=[rows[1],rows[0],rows[2]].filter(Boolean);
+  const rest=rows.slice(3);
+  const myRank=rows.findIndex(p=>p.name===user.name)+1;
+
   return(
     <div className="inner-page">
-      <div className="ip-header no-back"><h2>🏆 Рейтинг</h2></div>
+      <div className="ip-header no-back"><h2>🏆 Рейтинг</h2>{loading&&<span style={{fontSize:'.75rem',color:'var(--text3)'}}>Загрузка…</span>}</div>
       <div className="seg-tabs">{[{id:'global',l:'Глобальный'},{id:'friends',l:'Друзья'},{id:'clan',l:'Клан'}].map(t=>(
         <button key={t.id} className={`seg-tab ${tab===t.id?'seg-active':''}`} onClick={()=>setTab(t.id)}>{t.l}</button>
       ))}</div>
       <div className="ip-body">
-        <div className="podium">
-          {[LEADERBOARD_DATA[1],LEADERBOARD_DATA[0],LEADERBOARD_DATA[2]].map((p,i)=>(
-            <div key={p.rank} className={`pod pod${i}`}>
-              <div className="pod-av">{p.avatar}</div>
-              <div className="pod-name">{p.name.slice(0,9)}</div>
-              <div className="pod-cups">{p.cups}🏆</div>
-              <div className="pod-medal">{['🥈','🥇','🥉'][i]}</div>
+        {tab==='global'&&(<>
+          {top3.length>=3&&(
+            <div className="podium">
+              {top3.map((p,i)=>(
+                <div key={i} className={`pod pod${i}`}>
+                  <div className="pod-av">{p.avatar}</div>
+                  <div className="pod-name">{p.name.slice(0,9)}</div>
+                  <div className="pod-cups">{p.cups}🏆</div>
+                  <div className="pod-medal">{['🥈','🥇','🥉'][i]}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="lb-list">
-          {LEADERBOARD_DATA.slice(3).map(p=>(
-            <div key={p.rank} className="lb-row">
-              <span className="lb-rank">#{p.rank}</span><span className="lb-av">{p.avatar}</span>
-              <div className="lb-mid"><span className="lb-name">{p.name}</span><span className="lb-arena">{p.arena}</span></div>
-              <span className="lb-cups">{p.cups}🏆</span>
-            </div>
-          ))}
-          <div className="lb-row lb-me">
-            <span className="lb-rank">#{myRank||'50+'}</span><span className="lb-av">{user.avatar}</span>
-            <div className="lb-mid"><span className="lb-name">{user.name} (вы)</span><span className="lb-arena">Ветеран</span></div>
-            <span className="lb-cups">{user.cups}🏆</span>
+          )}
+          <div className="lb-list">
+            {rest.map(p=>(
+              <div key={p.rank} className={`lb-row${p.name===user.name?' lb-me':''}`}>
+                <span className="lb-rank">#{p.rank}</span><span className="lb-av">{p.avatar}</span>
+                <div className="lb-mid"><span className="lb-name">{p.name}{p.name===user.name&&' (вы)'}</span><span className="lb-arena">{p.arena}</span></div>
+                <span className="lb-cups">{p.cups}🏆</span>
+              </div>
+            ))}
+            {myRank<1&&(
+              <div className="lb-row lb-me">
+                <span className="lb-rank">#?</span><span className="lb-av">{user.avatar}</span>
+                <div className="lb-mid"><span className="lb-name">{user.name} (вы)</span><span className="lb-arena">{getArena(user.cups).name}</span></div>
+                <span className="lb-cups">{user.cups}🏆</span>
+              </div>
+            )}
           </div>
-        </div>
+        </>)}
+        {tab==='friends'&&FRIENDS_DATA.map((f,i)=>(
+          <div key={i} className="lb-row">
+            <span className="lb-rank">#{i+1}</span><span className="lb-av">{f.avatar}</span>
+            <div className="lb-mid"><span className="lb-name">{f.name}</span><span className="lb-arena">{f.online?'В сети':'Не в сети'}</span></div>
+            <span className="lb-cups">{f.cups}🏆</span>
+          </div>
+        ))}
+        {tab==='clan'&&CLAN_DATA.members.sort((a,b)=>b.cups-a.cups).map((m,i)=>(
+          <div key={i} className="lb-row">
+            <span className="lb-rank">#{i+1}</span><span className="lb-av">{m.avatar}</span>
+            <div className="lb-mid"><span className="lb-name">{m.name}</span><span className="lb-arena">{m.arena}</span></div>
+            <span className="lb-cups">{m.cups}🏆</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
 // ══ PROFILE ══
-function ProfileScreen({ user, navigate, onSignOut }) {
+const AVATARS=['😊','😎','🦊','🐯','🦁','🐺','🐸','🤖','👑','🔥','💀','⚡','🎭','🌟','🧠','🎯'];
+function ProfileScreen({ user, navigate, onSignOut, onSaveProfile, session }) {
   const [tab,setTab]=React.useState('stats');
+  const [editing,setEditing]=React.useState(false);
+  const [editName,setEditName]=React.useState(user.name);
+  const [editCity,setEditCity]=React.useState(user.city||'');
+  const [editAvatar,setEditAvatar]=React.useState(user.avatar);
+  const [history,setHistory]=React.useState([]);
+  const [histLoading,setHistLoading]=React.useState(false);
   const wr=Math.round(user.wins/Math.max(user.wins+user.losses,1)*100);
+
+  React.useEffect(()=>{
+    if(tab!=='history'||!session) return;
+    setHistLoading(true);
+    sb.from('game_history').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(20)
+      .then(({data})=>{ setHistory(data||[]); setHistLoading(false); });
+  },[tab,session]);
+
+  function saveEdit(){
+    if(!editName.trim()) return;
+    onSaveProfile({...user,name:editName.trim(),avatar:editAvatar,city:editCity});
+    setEditing(false);
+  }
+
   return(
     <div className="inner-page">
       <div className="profile-hero">
         <div className="ph-av">{user.avatar}</div>
         <h2 className="ph-name">{user.name}</h2>
+        {user.city&&<div style={{fontSize:'.75rem',color:'var(--text2)'}}>📍 {user.city}</div>}
         {user.isPro&&<span className="pro-chip">⭐ PRO</span>}
         <div className="ph-cups">🏆 {user.cups} кубков</div>
+        <button className="ghost-btn" style={{marginTop:6}} onClick={()=>setEditing(v=>!v)}>
+          {editing?'Отмена':'✏️ Редактировать'}
+        </button>
       </div>
-      <div className="seg-tabs">{[{id:'stats',l:'Статистика'},{id:'friends',l:'Друзья'},{id:'badges',l:'Достижения'}].map(t=>(
+
+      {editing&&(
+        <div style={{padding:'12px 20px',borderBottom:'1px solid var(--border)',display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{display:'flex',gap:8}}>
+            <div style={{flex:1}}><label style={{fontSize:'.72rem',color:'var(--text2)',fontWeight:600}}>Никнейм</label>
+              <input className="text-input" value={editName} onChange={e=>setEditName(e.target.value)} style={{marginTop:4,width:'100%'}}/>
+            </div>
+            <div style={{flex:1}}><label style={{fontSize:'.72rem',color:'var(--text2)',fontWeight:600}}>Город</label>
+              <input className="text-input" value={editCity} onChange={e=>setEditCity(e.target.value)} placeholder="Алматы…" style={{marginTop:4,width:'100%'}}/>
+            </div>
+          </div>
+          <div><label style={{fontSize:'.72rem',color:'var(--text2)',fontWeight:600}}>Аватар</label>
+            <div className="avatar-grid" style={{marginTop:4}}>
+              {AVATARS.map(av=>(
+                <button key={av} className={`av-btn ${editAvatar===av?'av-btn-sel':''}`} onClick={()=>setEditAvatar(av)}>{av}</button>
+              ))}
+            </div>
+          </div>
+          <button className="btn-primary" onClick={saveEdit}>Сохранить</button>
+        </div>
+      )}
+
+      <div className="seg-tabs">{[{id:'stats',l:'Статистика'},{id:'history',l:'История'},{id:'badges',l:'Достижения'}].map(t=>(
         <button key={t.id} className={`seg-tab ${tab===t.id?'seg-active':''}`} onClick={()=>setTab(t.id)}>{t.l}</button>
       ))}</div>
       <div className="ip-body">
@@ -1391,17 +1555,23 @@ function ProfileScreen({ user, navigate, onSignOut }) {
             ))}
           </div>
         )}
-        {tab==='friends'&&(
-          <div>
-            <div className="add-row"><input className="text-input" placeholder="Добавить по нику…"/><button className="btn-primary sm">+</button></div>
-            {FRIENDS_DATA.map(f=>(
-              <div key={f.id} className="fr-row">
-                <span className="fr-av">{f.avatar}</span>
-                <div className="fr-info"><span className="fr-name">{f.name}</span><span className={`fr-st ${f.online?'st-on':'st-off'}`}>{f.online?'● В сети':'○ Не в сети'} · {f.cups}🏆</span></div>
-                <button className="ghost-btn" disabled={!f.online} onClick={()=>navigate('matchmaking',{mode:'friend',opponent:f})}>⚔️</button>
+        {tab==='history'&&(
+          histLoading?<div style={{textAlign:'center',padding:24,color:'var(--text2)'}}>Загрузка…</div>:
+          history.length===0?<div style={{textAlign:'center',padding:24,color:'var(--text3)'}}>Нет партий</div>:
+          history.map((g,i)=>{
+            const won=g.winner==='W';
+            const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+            return(
+              <div key={i} className="recent-row">
+                <div className={`rr-badge ${won?'rr-win':'rr-loss'}`}>{won?'В':'П'}</div>
+                <div className="rr-info">
+                  <span className="rr-opp">{g.opponent}</span>
+                  <span className="rr-mode">{g.game_mode==='ai'?'С ботом':g.game_mode==='online'?'Онлайн':'С другом'} · {g.moves} ходов · {fmt(g.duration||0)}</span>
+                </div>
+                <span className={`rr-cups ${won?'cups-up':'cups-dn'}`}>{g.cups_change>0?'+':''}{g.cups_change} 🏆</span>
               </div>
-            ))}
-          </div>
+            );
+          })
         )}
         {tab==='badges'&&(
           <div className="badges-wrap">
@@ -1504,8 +1674,87 @@ function FriendsScreen({ navigate, user }) {
   );
 }
 
+// ══ MULTIPLAYER LOBBY ══
+function MultiplayerLobbyScreen({ navigate, user }) {
+  const [mode,setMode]=React.useState(null);
+  const [code,setCode]=React.useState('');
+  const [inputCode,setInputCode]=React.useState('');
+  const [status,setStatus]=React.useState('');
+  const [opponent,setOpponent]=React.useState(null);
+  const chRef=React.useRef(null);
+
+  React.useEffect(()=>()=>{ chRef.current?.unsubscribe(); },[]);
+
+  function createRoom(){
+    const c=Math.random().toString(36).slice(2,8).toUpperCase();
+    setCode(c); setMode('create'); setStatus('Ожидание соперника…');
+    const ch=sb.channel(`room-${c}`,{config:{broadcast:{self:false}}});
+    chRef.current=ch;
+    ch.on('broadcast',{event:'guest-join'},({payload})=>{
+      setOpponent(payload); setStatus('Соперник найден!');
+      setTimeout(()=>{
+        ch.send({type:'broadcast',event:'start',payload:{hostName:user.name,hostAvatar:user.avatar}});
+        navigate('game',{gameMode:'multiplayer',myColor:'white',roomCode:c,opponent:{name:payload.name,avatar:payload.avatar||'😊'}});
+      },800);
+    });
+    ch.subscribe();
+  }
+
+  function joinRoom(){
+    const c=inputCode.trim().toUpperCase();
+    if(c.length!==6) return;
+    setMode('join'); setStatus('Подключаемся…');
+    const ch=sb.channel(`room-${c}`,{config:{broadcast:{self:false}}});
+    chRef.current=ch;
+    ch.on('broadcast',{event:'start'},({payload})=>{
+      setTimeout(()=>navigate('game',{gameMode:'multiplayer',myColor:'black',roomCode:c,opponent:{name:payload.hostName,avatar:payload.hostAvatar||'🤖'}}),400);
+    });
+    ch.subscribe(s=>{
+      if(s==='SUBSCRIBED'){
+        ch.send({type:'broadcast',event:'guest-join',payload:{name:user.name,avatar:user.avatar}});
+        setStatus('Ожидание подтверждения…');
+      }
+    });
+  }
+
+  return(
+    <div className="inner-page">
+      <div className="ip-header">
+        <button className="back-btn" onClick={()=>navigate('home')}>‹</button>
+        <h2>🌐 Игра с другом</h2><div/>
+      </div>
+      <div className="ip-body">
+        {!mode&&(<>
+          <button className="qa-btn qa-primary" style={{marginBottom:8}} onClick={createRoom}>
+            <span className="qa-icon">🏠</span>
+            <div><strong>Создать комнату</strong><small>Поделись кодом с другом</small></div>
+          </button>
+          <div className="mp-divider">— или —</div>
+          <div style={{display:'flex',gap:8}}>
+            <input className="text-input" placeholder="Код комнаты (6 букв)" value={inputCode}
+              onChange={e=>setInputCode(e.target.value.toUpperCase())} maxLength={6}
+              style={{textTransform:'uppercase',letterSpacing:'.1em',fontWeight:700}}/>
+            <button className="btn-primary" style={{width:'auto',padding:'9px 16px'}} onClick={joinRoom}>Войти →</button>
+          </div>
+        </>)}
+        {mode==='create'&&(<>
+          <div className="mp-room-box">
+            <div style={{fontSize:'.78rem',color:'var(--text2)',marginBottom:6}}>Код комнаты</div>
+            <div className="mp-code">{code}</div>
+            <div className="mp-hint">Дай этот код другу — он вводит его и подключается</div>
+          </div>
+          {opponent
+            ?<div className="mp-status">✅ {opponent.name} подключился! Начинаем…</div>
+            :<div className="mp-status"><div className="think-dots"><span/><span/><span/></div>{status}</div>}
+        </>)}
+        {mode==='join'&&<div className="mp-status"><div className="think-dots"><span/><span/><span/></div>{status}</div>}
+      </div>
+    </div>
+  );
+}
+
 // ══ SIDEBAR ══
-function Sidebar({ screen, navigate, user, onSignOut }) {
+function Sidebar({ screen, navigate, user, onSignOut, theme, setTheme }) {
   const items = [
     { id:'home',        icon:'♟',  label:'Играть'  },
     { id:'learn',       icon:'🎓', label:'Учёба'   },
@@ -1519,6 +1768,9 @@ function Sidebar({ screen, navigate, user, onSignOut }) {
       <div className="sb-logo">
         <span className="sb-logo-icon">◈</span>
         <span className="sb-logo-text">Шашки</span>
+        <button className="theme-btn" style={{marginLeft:'auto',fontSize:'.8rem',padding:'3px 7px'}} onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} title="Сменить тему">
+          {theme==='dark'?'☀️':'🌙'}
+        </button>
       </div>
       <nav className="sb-nav">
         {items.map(it=>(
@@ -1569,6 +1821,7 @@ function App() {
   const [session, setSession] = React.useState(undefined);
   const [screen,  setScreen]  = React.useState('home');
   const [params,  setParams]  = React.useState({});
+  const [theme,   setTheme]   = React.useState(()=>localStorage.getItem('theme')||'dark');
   const [user,    setUser]    = React.useState({
     name:'Игрок', cups:750, streak:0, wins:0, losses:0,
     avatar:'😊', isPro:false, streakShield:false,
@@ -1577,6 +1830,8 @@ function App() {
   });
   const [result, setResult] = React.useState(null);
   const [delta,  setDelta]  = React.useState(0);
+
+  React.useEffect(()=>{ document.body.className=theme; localStorage.setItem('theme',theme); },[theme]);
 
   React.useEffect(()=>{
     sb.auth.getSession().then(({data:{session}})=>{
@@ -1595,6 +1850,7 @@ function App() {
     if(data) setUser(u=>({...u,
       name:data.username, cups:data.cups, streak:data.streak,
       wins:data.wins, losses:data.losses, avatar:data.avatar||'😊',
+      city:data.city||'',
       ownedItems:data.owned_items||['standard_emoji'], isPro:data.is_pro||false,
     }));
   }
@@ -1604,7 +1860,7 @@ function App() {
     await sb.from('profiles').update({
       username:u.name, cups:u.cups, streak:u.streak, wins:u.wins,
       losses:u.losses, avatar:u.avatar, owned_items:u.ownedItems,
-      is_pro:u.isPro, updated_at:new Date().toISOString(),
+      is_pro:u.isPro, city:u.city||'', updated_at:new Date().toISOString(),
     }).eq('id',session.user.id);
   }
 
@@ -1622,7 +1878,9 @@ function App() {
   function navigate(s,p={}){ setScreen(s); setParams(p); }
 
   function handleGameEnd(r) {
-    const d=calcCups(r); setDelta(d); setResult(r);
+    const d=calcCups(r);
+    setDelta(d);
+    setResult({...r, prevCups:user.cups});
     setUser(u=>{
       const nu={...u,
         cups:Math.max(0,u.cups+d),
@@ -1649,6 +1907,15 @@ function App() {
 
   async function handleSignOut() { await sb.auth.signOut(); setSession(null); }
 
+  function handleSaveProfile(updated) {
+    setUser(u=>({...u,...updated}));
+    if(!session) return;
+    sb.from('profiles').update({
+      username:updated.name, avatar:updated.avatar,
+      city:updated.city||'', updated_at:new Date().toISOString(),
+    }).eq('id',session.user.id);
+  }
+
   if(session===undefined) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'var(--bg)'}}>
       <div style={{color:'var(--text2)'}}>Загрузка…</div>
@@ -1662,9 +1929,9 @@ function App() {
 
   return (
     <div className="app-shell">
-      {!isGame && <Sidebar screen={screen} navigate={navigate} user={user} onSignOut={handleSignOut}/>}
+      {!isGame && <Sidebar screen={screen} navigate={navigate} user={user} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>}
       <main className={`app-main${isGame?' app-main-game':''}`}>
-        {screen==='home'        && <HomeScreen user={user} arena={arena} navigate={navigate}/>}
+        {screen==='home'        && <HomeScreen user={user} arena={arena} navigate={navigate} session={session} theme={theme} setTheme={setTheme}/>}
         {screen==='learn'       && <LearnScreen navigate={navigate}/>}
         {screen==='ai-select'   && <AIDifficultyScreen navigate={navigate}/>}
         {screen==='friends'     && <FriendsScreen navigate={navigate} user={user}/>}
@@ -1676,13 +1943,16 @@ function App() {
             coachMode={params.coachMode||false}
             arena={arena} emojiPack={user.emojiPack}
             opponent={params.opponent}
+            myColor={params.myColor||'white'}
+            roomCode={params.roomCode||''}
             onGameEnd={handleGameEnd} onResign={handleResign}
           />
         )}
         {screen==='postgame'    && <PostGameScreen result={result} cupsChange={delta} user={user} navigate={navigate}/>}
         {screen==='shop'        && <ShopScreen user={user} onPurchase={handlePurchase} navigate={navigate}/>}
         {screen==='leaderboard' && <LeaderboardScreen user={user} navigate={navigate}/>}
-        {screen==='profile'     && <ProfileScreen user={user} navigate={navigate} onSignOut={handleSignOut}/>}
+        {screen==='profile'     && <ProfileScreen user={user} navigate={navigate} onSignOut={handleSignOut} onSaveProfile={handleSaveProfile} session={session}/>}
+        {screen==='mp-lobby'    && <MultiplayerLobbyScreen navigate={navigate} user={user} arena={arena}/>}
         {screen==='clan'        && <ClanScreen navigate={navigate}/>}
         {!isGame && <BottomNav screen={screen} navigate={navigate}/>}
       </main>

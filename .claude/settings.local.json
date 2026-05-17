@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp \"/Users/Aldiyar1/.claude/projects/-Users-Aldiyar1-Documents-Projects-checkers/eb1256da-d62a-43c1-b081-807d319459c5/tool-results/webfetch-1778951676815-bysq4y.bin\" /tmp/design.gz)",
+      "Bash(gunzip -c /tmp/design.gz)",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p /tmp/design_bundle)",
+      "Bash(tar -xf /tmp/design_out -C /tmp/design_bundle)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(find /tmp -type d -name \"russian-checkers-playground\" 2>/dev/null | head -5)",
+      "WebSearch",
+      "Bash(ls -la \"/var/folders/__/76ptd08x7b5bjxn6t_hh4q_c0000gp/T/TemporaryItems/NSIRD_screencaptureui_YYGQdl/\" 2>/dev/null || echo \"path not found\")",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(supabase --version)",
+      "Bash(brew --version)"
+    ]
+  }
+}

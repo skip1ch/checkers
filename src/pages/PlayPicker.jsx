@@ -25,8 +25,8 @@ export default function PlayPicker({ navigate }) {
         <div className="mode-card">
           <div className="mode-card-icon wood-grain"/>
           <h3>С другом по ссылке</h3>
-          <p>Создайте комнату и поделитесь ссылкой. Друг подключится мгновенно.</p>
-          <button className="btn-primary" onClick={() => navigate('friend-lobby')}>Создать комнату</button>
+          <p>Создайте комнату и поделитесь ссылкой, или войдите по коду друга.</p>
+          <button className="btn-primary" onClick={() => navigate('friend-lobby')}>Создать / Войти в комнату</button>
         </div>
       </div>
     </div>

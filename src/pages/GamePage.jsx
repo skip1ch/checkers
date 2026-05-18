@@ -19,7 +19,8 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
   const [thinking, setThinking] = useState(false)
   const [history, setHistory] = useState([])
   const [timer, setTimer] = useState(0)
-  const [floatingEmoji, setFloatingEmoji] = useState(null)
+  const [myEmoji, setMyEmoji] = useState(null)      // mine — rises from bottom
+  const [oppEmoji, setOppEmoji] = useState(null)    // opponent's — falls from top
   const chRef = useRef(null)
   const boardRef = useRef(board)
   boardRef.current = board
@@ -83,20 +84,17 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
       if (winner) setTimeout(() => { setGameResult(winner); playSound(winner==='W'?'win':'lose') }, 300)
     })
     ch.on('broadcast', {event:'emoji'}, ({payload}) => {
-      showEmoji(payload.char)
+      setOppEmoji({ char: payload.char, key: Date.now() })
+      clearTimeout(floatTimer.current)
+      floatTimer.current = setTimeout(() => setOppEmoji(null), 2200)
     })
     ch.subscribe()
     return () => ch.unsubscribe()
   }, [])
 
-  function showEmoji(char) {
-    setFloatingEmoji({ char, key: Date.now() })
-    clearTimeout(floatTimer.current)
-    floatTimer.current = setTimeout(() => setFloatingEmoji(null), 2200)
-  }
-
   function sendEmoji(char) {
-    showEmoji(char)
+    setMyEmoji({ char, key: Date.now() })
+    setTimeout(() => setMyEmoji(null), 2200)
     if (chRef.current) {
       chRef.current.send({ type:'broadcast', event:'emoji', payload:{ char } })
     }
@@ -188,9 +186,14 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
         <GameInfoSidebar board={board} wt={wt} gameResult={gameResult} history={history} thinking={thinking} mode={modeLabel}/>
       </div>
 
-      {floatingEmoji && (
-        <div key={floatingEmoji.key} className="emoji-float-wrap">
-          <span className="emoji-float-char">{floatingEmoji.char}</span>
+      {myEmoji && (
+        <div key={myEmoji.key} className="emoji-float-wrap emoji-float-mine">
+          <span className="emoji-float-char">{myEmoji.char}</span>
+        </div>
+      )}
+      {oppEmoji && (
+        <div key={oppEmoji.key} className="emoji-float-wrap emoji-float-opp">
+          <span className="emoji-float-char">{oppEmoji.char}</span>
         </div>
       )}
 

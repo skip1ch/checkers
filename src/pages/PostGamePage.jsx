@@ -5,8 +5,11 @@ import MiniBoard from '../components/MiniBoard'
 import CaptureChart from '../components/CaptureChart'
 
 export default function PostGamePage({ result, navigate }) {
-  const { winner, history=[], mode='ai', level='medium', timer=0, gemsEarned=0 } = result||{}
-  const won = winner==='W'
+  const { winner, history=[], mode='ai', level='medium', timer=0, gemsEarned=0, myColor='w' } = result||{}
+  // In friend mode each player has their own color — check if THIS player won
+  const won = mode === 'local'
+    ? winner === 'W'
+    : (winner === 'W') === (myColor === 'w')
   const pCaps = history.filter(m=>m.white).reduce((s,m)=>s+m.caps.length,0)
   const aCaps = history.filter(m=>!m.white).reduce((s,m)=>s+m.caps.length,0)
   const moves = history.length

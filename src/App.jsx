@@ -131,14 +131,29 @@ export default function App() {
       setGems(data.gems ?? 0)
       if (data.owned_themes?.length) setOwnedThemes(data.owned_themes)
       if (data.owned_emojis?.length) setOwnedEmojis(data.owned_emojis)
-      setUserWins(data.wins ?? 0)
-      setGamesPlayed(data.games_played ?? 0)
-      setTotalCaptures(data.total_captures ?? 0)
-      // Sync localStorage with Supabase values
+      // For wins/games/captures: take the higher of Supabase or localStorage
+      // (guards against missing DB columns silently returning null)
+      const dbWins = data.wins ?? 0
+      const dbGames = data.games_played ?? 0
+      const dbCaptures = data.total_captures ?? 0
+      const localWins = parseInt(localStorage.getItem('wins') || '0')
+      const localGames = parseInt(localStorage.getItem('games_played') || '0')
+      const localCaptures = parseInt(localStorage.getItem('total_captures') || '0')
+      const safeWins = Math.max(dbWins, localWins)
+      const safeGames = Math.max(dbGames, localGames)
+      const safeCaptures = Math.max(dbCaptures, localCaptures)
+      setUserWins(safeWins)
+      setGamesPlayed(safeGames)
+      setTotalCaptures(safeCaptures)
+      // If local was higher, sync it back up to Supabase
+      if (safeGames > dbGames || safeWins > dbWins || safeCaptures > dbCaptures) {
+        sb.from('profiles').update({ wins: safeWins, games_played: safeGames, total_captures: safeCaptures }).eq('id', uid)
+      }
+      // Sync localStorage
       localStorage.setItem('gems', String(data.gems ?? 0))
-      localStorage.setItem('wins', String(data.wins ?? 0))
-      localStorage.setItem('games_played', String(data.games_played ?? 0))
-      localStorage.setItem('total_captures', String(data.total_captures ?? 0))
+      localStorage.setItem('wins', String(safeWins))
+      localStorage.setItem('games_played', String(safeGames))
+      localStorage.setItem('total_captures', String(safeCaptures))
     } else {
       // First Google OAuth login — create profile automatically
       const { data: { user: authUser } } = await sb.auth.getUser()

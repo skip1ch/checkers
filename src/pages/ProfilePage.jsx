@@ -41,13 +41,16 @@ function calcSkills(wins, gamesPlayed, totalCaptures, gems) {
   if (gamesPlayed === 0) return [0, 0, 0, 0, 0, 0]
   const wr = wins / gamesPlayed
   const cpg = totalCaptures / gamesPlayed
+  // gf растёт логарифмически: ~0.15 при 1 игре, ~0.5 при 10, ~0.85 при 50, 1.0 при 100+
+  const gf = Math.min(1, Math.log10(gamesPlayed + 1) / 2)
+  const gemF = Math.min(1, gems / 1000)
   return [
-    Math.min(20, Math.round(cpg * 1.8)),
-    Math.min(20, Math.round(wr * 20)),
-    Math.min(20, Math.round(Math.log10(gamesPlayed + 1) * 13)),
-    Math.min(20, Math.round(2 + wr * 18)),
-    Math.min(20, Math.round(wr * 13 + Math.min(7, gamesPlayed / 5))),
-    Math.min(20, Math.round(Math.min(1, gems / 500) * 14 + wr * 6)),
+    Math.min(20, Math.round(Math.min(12, cpg * 1.5) + gf * 8)),   // Агрессия: захваты за игру
+    Math.min(20, Math.round(wr * 10 * gf + gf * 10)),             // Мастерство: % побед × опыт
+    Math.min(20, Math.round(gf * 20)),                             // Опыт: только кол-во игр
+    Math.min(20, Math.round(wr * 6 + gf * 14)),                   // Скорость: баланс
+    Math.min(20, Math.round(wr * 8 * gf + cpg * 0.5 + gf * 8)),  // Стратегия
+    Math.min(20, Math.round(gemF * 10 + wr * 5 * gf + gf * 5)),  // Удача: гемы + победы
   ]
 }
 

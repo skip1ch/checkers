@@ -17,6 +17,26 @@ function GemIcon({ size = 16 }) {
   )
 }
 
+const RANKS = [
+  { min: 0,   label: 'Новичок',   emoji: '🌱', color: '#7aad6e' },
+  { min: 5,   label: 'Любитель',  emoji: '⚔️',  color: '#6b9fd4' },
+  { min: 15,  label: 'Игрок',     emoji: '🎯',  color: '#c9a227' },
+  { min: 30,  label: 'Мастер',    emoji: '👑',  color: '#a0522d' },
+  { min: 50,  label: 'Ветеран',   emoji: '⭐',  color: '#8e44ad' },
+  { min: 100, label: 'Легенда',   emoji: '🏆',  color: '#c0392b' },
+]
+
+function getRank(games) {
+  let rank = RANKS[0]
+  for (const r of RANKS) { if (games >= r.min) rank = r }
+  return rank
+}
+
+function getNextRank(games) {
+  for (const r of RANKS) { if (games < r.min) return r }
+  return null
+}
+
 function calcSkills(wins, gamesPlayed, totalCaptures, gems) {
   const wr = gamesPlayed > 0 ? wins / gamesPlayed : 0
   const cpg = gamesPlayed > 0 ? totalCaptures / gamesPlayed : 0
@@ -30,10 +50,9 @@ function calcSkills(wins, gamesPlayed, totalCaptures, gems) {
   ]
 }
 
-function formatMemberSince(dateStr) {
+function formatDate(dateStr) {
   if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long', day: 'numeric' })
+  return new Date(dateStr).toLocaleDateString('ru-RU', { year:'numeric', month:'long', day:'numeric' })
 }
 
 function getInitials(name) {
@@ -41,19 +60,7 @@ function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function ProfilePage({
-  navigate,
-  session,
-  user,
-  gems,
-  ownedThemes,
-  activeThemeId,
-  userWins,
-  gamesPlayed,
-  totalCaptures,
-  onSignOut,
-  onRename,
-}) {
+export default function ProfilePage({ navigate, session, user, gems, ownedThemes, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename }) {
   const radarRef = useRef(null)
   const donutRef = useRef(null)
   const radarChart = useRef(null)
@@ -64,6 +71,22 @@ export default function ProfilePage({
   const [editName, setEditName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
+
+  const wins = userWins || 0
+  const played = gamesPlayed || 0
+  const captures = totalCaptures || 0
+  // Fix: wins can't exceed played (data inconsistency guard)
+  const safeWins = Math.min(wins, Math.max(wins, played))
+  const losses = Math.max(0, played - wins)
+  const winPct = played > 0 ? Math.min(100, Math.round(wins / played * 100)) : 0
+
+  const rank = getRank(played)
+  const nextRank = getNextRank(played)
+  const rankProgress = nextRank
+    ? Math.round(((played - rank.min) / (nextRank.min - rank.min)) * 100)
+    : 100
+
+  const skills = calcSkills(wins, played, captures, gems)
 
   function startEdit() {
     setEditName(user?.name || '')
@@ -84,278 +107,241 @@ export default function ProfilePage({
     } else {
       onRename?.(trimmed)
       setEditing(false)
-      setSaveMsg({ text: 'Никнейм обновлён!', err: false })
+      setSaveMsg({ text: '✓ Никнейм обновлён', err: false })
       setTimeout(() => setSaveMsg(null), 2500)
     }
   }
 
-  const wins = userWins || 0
-  const played = gamesPlayed || 0
-  const captures = totalCaptures || 0
-  const winPct = played > 0 ? Math.round(wins / played * 100) : 0
-  const losses = played - wins
-
-  const memberSince = session?.user?.created_at
-    ? formatMemberSince(session.user.created_at)
-    : ''
-
-  const skills = calcSkills(wins, played, captures, gems)
-
   useEffect(() => {
     if (!radarRef.current) return
-
-    const ctx = radarRef.current.getContext('2d')
-    radarChart.current = new Chart(ctx, {
+    radarChart.current?.destroy()
+    radarChart.current = new Chart(radarRef.current, {
       type: 'radar',
       data: {
         labels: ['Агрессия', 'Мастерство', 'Опыт', 'Скорость', 'Стратегия', 'Удача'],
         datasets: [{
           data: skills,
           borderColor: '#6b4423',
-          backgroundColor: 'rgba(107,68,35,0.12)',
+          backgroundColor: 'rgba(107,68,35,0.13)',
           pointBackgroundColor: '#c9a227',
           pointBorderColor: '#6b4423',
-          pointRadius: 4,
-          borderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          borderWidth: 2.5,
         }],
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600 },
         scales: {
           r: {
-            min: 0,
-            max: 20,
-            grid: { color: 'rgba(107,68,35,0.15)' },
-            angleLines: { color: 'rgba(107,68,35,0.15)' },
-            pointLabels: {
-              font: { size: 11 },
-              color: '#6b5040',
-            },
-            ticks: { display: false },
+            min: 0, max: 20,
+            grid: { color: 'rgba(107,68,35,0.12)' },
+            angleLines: { color: 'rgba(107,68,35,0.12)' },
+            pointLabels: { font: { size: 12, family: 'Inter' }, color: '#6b5040' },
+            ticks: { display: false, stepSize: 5 },
           },
         },
-        plugins: {
-          legend: { display: false },
-        },
+        plugins: { legend: { display: false } },
       },
     })
-
-    return () => { radarChart.current?.destroy() }
+    return () => radarChart.current?.destroy()
   }, [wins, played, captures, gems])
 
   useEffect(() => {
     if (!donutRef.current) return
+    donutChart.current?.destroy()
 
-    const total = wins + losses
-    const isZero = total === 0
-    const data = isZero ? [1, 1] : [wins, losses]
-    const colors = isZero ? ['#e8dcc8', '#d4c4b0'] : ['#4a7c4e', '#c0392b']
+    const isEmpty = played === 0
+    const data = isEmpty ? [1, 1] : [Math.max(0, wins), Math.max(0, losses)]
+    const colors = isEmpty ? ['#e8dcc8', '#d4c4b0'] : ['#4a7c4e', '#c0392b']
+    const pct = winPct
 
-    const centerTextPlugin = {
-      id: 'centerText',
+    const centerPlugin = {
+      id: 'center',
       afterDraw(chart) {
         const { ctx, chartArea: { width, height, left, top } } = chart
-        const pct = total > 0 ? Math.round(wins / total * 100) : 0
         ctx.save()
-        ctx.font = "bold 22px 'Playfair Display', serif"
-        ctx.fillStyle = '#2b1810'
+        ctx.font = `bold 24px 'Playfair Display', serif`
+        ctx.fillStyle = isEmpty ? '#c0b090' : '#2b1810'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillText(`${pct}%`, left + width / 2, top + height / 2 - 8)
-        ctx.font = "11px Inter, sans-serif"
+        ctx.fillText(`${pct}%`, left + width / 2, top + height / 2 - 10)
+        ctx.font = '11px Inter, sans-serif'
         ctx.fillStyle = '#a08060'
         ctx.fillText('побед', left + width / 2, top + height / 2 + 14)
         ctx.restore()
       },
     }
 
-    const ctx = donutRef.current.getContext('2d')
-    donutChart.current = new Chart(ctx, {
+    donutChart.current = new Chart(donutRef.current, {
       type: 'doughnut',
-      plugins: [centerTextPlugin],
+      plugins: [centerPlugin],
       data: {
         labels: ['Победы', 'Поражения'],
-        datasets: [{
-          data,
-          backgroundColor: colors,
-          borderWidth: 0,
-        }],
+        datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }],
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '72%',
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600 },
+        cutout: '74%',
         plugins: {
           legend: {
-            display: true,
-            position: 'bottom',
-            labels: {
-              font: { size: 11 },
-              color: '#6b5040',
-              padding: 14,
-            },
+            display: true, position: 'bottom',
+            labels: { font: { size: 11 }, color: '#6b5040', padding: 16, usePointStyle: true, pointStyleWidth: 10 },
           },
+          tooltip: { enabled: !isEmpty },
         },
       },
     })
-
-    return () => { donutChart.current?.destroy() }
-  }, [wins, losses])
+    return () => donutChart.current?.destroy()
+  }, [wins, losses, played])
 
   const ownedThemeObjs = THEMES.filter(t => ownedThemes?.includes(t.id))
 
   return (
     <div className="profile-page">
-      {/* Hero */}
+
+      {/* ── Hero ── */}
       <div className="profile-hero">
-        <div className="profile-avatar">
-          {getInitials(user?.name)}
-        </div>
-        <div className="profile-info">
-          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+        <div className="profile-avatar">{getInitials(user?.name)}</div>
+        <div className="profile-info" style={{flex:1,minWidth:0}}>
+
+          {/* Name + edit */}
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginBottom:4}}>
             {editing ? (
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <>
                 <input
                   ref={inputRef}
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   onKeyDown={e => { if (e.key==='Enter') saveEdit(); if (e.key==='Escape') setEditing(false) }}
                   maxLength={24}
-                  style={{
-                    fontFamily:"'Playfair Display',serif", fontSize:'1.5rem', fontWeight:700,
-                    border:'none', borderBottom:'2px solid var(--primary)', background:'transparent',
-                    outline:'none', color:'var(--text)', width: 180, padding:'2px 0',
-                  }}
+                  style={{fontFamily:"'Playfair Display',serif",fontSize:'1.5rem',fontWeight:700,border:'none',borderBottom:'2px solid var(--primary)',background:'transparent',outline:'none',color:'var(--text)',width:180,padding:'2px 0'}}
                 />
-                <button
-                  onClick={saveEdit} disabled={saving}
-                  style={{padding:'4px 14px',borderRadius:'var(--r)',border:'none',background:'var(--primary)',color:'#fff',fontWeight:600,fontSize:'.82rem',cursor:'pointer'}}
-                >
+                <button onClick={saveEdit} disabled={saving} style={{padding:'4px 14px',borderRadius:'var(--r)',border:'none',background:'var(--primary)',color:'#fff',fontWeight:600,fontSize:'.82rem',cursor:'pointer'}}>
                   {saving ? '…' : 'Сохранить'}
                 </button>
-                <button
-                  onClick={() => setEditing(false)}
-                  style={{padding:'4px 10px',borderRadius:'var(--r)',border:'1px solid var(--border2)',background:'none',color:'var(--text2)',fontSize:'.82rem',cursor:'pointer'}}
-                >
+                <button onClick={() => setEditing(false)} style={{padding:'4px 10px',borderRadius:'var(--r)',border:'1px solid var(--border2)',background:'none',color:'var(--text2)',fontSize:'.82rem',cursor:'pointer'}}>
                   Отмена
                 </button>
-              </div>
+              </>
             ) : (
               <>
                 <div className="profile-name">{user?.name || 'Игрок'}</div>
-                <button
-                  onClick={startEdit}
-                  title="Изменить никнейм"
-                  style={{background:'none',border:'1px solid var(--border2)',borderRadius:'var(--r)',padding:'3px 8px',cursor:'pointer',color:'var(--text3)',fontSize:'.75rem',display:'flex',alignItems:'center',gap:4}}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
+                <button onClick={startEdit} title="Изменить никнейм" style={{background:'none',border:'1px solid var(--border2)',borderRadius:'var(--r)',padding:'3px 9px',cursor:'pointer',color:'var(--text3)',fontSize:'.72rem',display:'flex',alignItems:'center',gap:4,transition:'background .15s'}} onMouseOver={e=>e.currentTarget.style.background='var(--surface2)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   Изменить
                 </button>
               </>
             )}
           </div>
-          {saveMsg && (
-            <div style={{fontSize:'.75rem',fontWeight:600,color: saveMsg.err ? 'var(--red)' : 'var(--green)',marginTop:4}}>
-              {saveMsg.text}
+
+          {saveMsg && <div style={{fontSize:'.75rem',fontWeight:600,color:saveMsg.err?'var(--red)':'var(--green)',marginBottom:4}}>{saveMsg.text}</div>}
+
+          <div style={{fontSize:'.82rem',color:'var(--text3)',marginBottom:2}}>{session?.user?.email || ''}</div>
+          {session?.user?.created_at && (
+            <div style={{fontSize:'.75rem',color:'var(--text3)',marginBottom:10}}>Участник с {formatDate(session.user.created_at)}</div>
+          )}
+
+          {/* Rank + gems row */}
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+            <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${rank.color}18`,border:`1.5px solid ${rank.color}40`,borderRadius:99,padding:'5px 14px',fontSize:'.85rem',fontWeight:700,color:rank.color}}>
+              <span>{rank.emoji}</span> {rank.label}
+            </div>
+            <div style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(41,182,246,0.1)',border:'1.5px solid rgba(41,182,246,0.3)',borderRadius:99,padding:'5px 14px',fontSize:'.85rem',fontWeight:700,color:'#0277bd'}}>
+              <GemIcon size={15}/> {gems ?? 0}
+            </div>
+          </div>
+
+          {/* Rank progress */}
+          {nextRank && (
+            <div style={{marginTop:10}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'.68rem',color:'var(--text3)',marginBottom:4}}>
+                <span>{rank.label}</span>
+                <span>{played} / {nextRank.min} игр → {nextRank.emoji} {nextRank.label}</span>
+              </div>
+              <div style={{height:5,background:'var(--surface2)',borderRadius:99,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${rankProgress}%`,background:`linear-gradient(90deg, ${rank.color}, ${nextRank.color})`,borderRadius:99,transition:'width .6s'}}/>
+              </div>
             </div>
           )}
-          <div className="profile-email">{session?.user?.email || ''}</div>
-          {memberSince && (
-            <div className="profile-since">Участник с {memberSince}</div>
-          )}
-          <div className="profile-gems-badge" style={{marginTop: 8}}>
-            <GemIcon size={16}/>
-            <span>{gems ?? 0} гемов</span>
-          </div>
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* ── Stats ── */}
       <div className="profile-stats">
-        <div className="profile-stat">
-          <div className="profile-stat-val">{played}</div>
-          <div className="profile-stat-lbl">Игр сыграно</div>
-        </div>
-        <div className="profile-stat">
-          <div className="profile-stat-val">{wins}</div>
-          <div className="profile-stat-lbl">Побед</div>
-        </div>
-        <div className="profile-stat">
-          <div className="profile-stat-val">{winPct}%</div>
-          <div className="profile-stat-lbl">Процент побед</div>
-        </div>
-        <div className="profile-stat">
-          <div className="profile-stat-val">{captures}</div>
-          <div className="profile-stat-lbl">Захватов</div>
-        </div>
+        {[
+          { icon:'🎮', val: played, lbl:'Игр сыграно' },
+          { icon:'🏆', val: wins,   lbl:'Побед' },
+          { icon:'📉', val: losses, lbl:'Поражений' },
+          { icon:'🎯', val:`${winPct}%`, lbl:'% побед' },
+          { icon:'⚔️',  val: captures, lbl:'Захватов' },
+        ].map(({ icon, val, lbl }) => (
+          <div key={lbl} className="profile-stat">
+            <div style={{fontSize:'1.4rem',marginBottom:4}}>{icon}</div>
+            <div className="profile-stat-val">{val}</div>
+            <div className="profile-stat-lbl">{lbl}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Charts */}
+      {/* ── Charts ── */}
       <div className="profile-charts">
         <div className="profile-chart-card">
           <div className="profile-chart-title">Навыки игрока</div>
+          {played === 0 && (
+            <div style={{textAlign:'center',padding:'16px 0 8px',fontSize:'.8rem',color:'var(--text3)'}}>Сыграй партию — и здесь появятся твои навыки</div>
+          )}
           <div className="profile-chart-wrap">
             <canvas ref={radarRef}/>
           </div>
         </div>
         <div className="profile-chart-card">
           <div className="profile-chart-title">Победы и поражения</div>
+          {played === 0 && (
+            <div style={{textAlign:'center',padding:'16px 0 8px',fontSize:'.8rem',color:'var(--text3)'}}>Статистика появится после первой игры</div>
+          )}
           <div className="profile-chart-wrap">
             <canvas ref={donutRef}/>
           </div>
         </div>
       </div>
 
-      {/* Owned themes */}
+      {/* ── Themes ── */}
       <div className="profile-themes">
-        <div className="profile-themes-title">Мои темы</div>
+        <div className="profile-themes-title">Мои темы ({ownedThemeObjs.length}/{THEMES.length})</div>
         <div className="profile-themes-grid">
           {ownedThemeObjs.map(theme => (
-            <div
-              key={theme.id}
-              className="profile-theme-chip"
-              style={activeThemeId === theme.id ? {borderColor: 'var(--primary)', background: 'rgba(107,68,35,0.06)'} : {}}
-            >
-              <div style={{display:'flex',gap:3}}>
-                {theme.preview.map((color, i) => (
-                  <div
-                    key={i}
-                    className="profile-theme-dot"
-                    style={{background: color}}
-                  />
-                ))}
+            <div key={theme.id} className="profile-theme-chip" style={activeThemeId===theme.id?{borderColor:'var(--primary)',background:'rgba(107,68,35,0.07)'}:{}}>
+              <div style={{display:'flex',gap:3,borderRadius:4,overflow:'hidden'}}>
+                {theme.preview.map((c,i) => <div key={i} style={{width:14,height:14,background:c}}/>)}
               </div>
               <span>{theme.name}</span>
-              {activeThemeId === theme.id && (
-                <span style={{fontSize:'.65rem',color:'var(--primary)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}}>
-                  активна
-                </span>
-              )}
+              {activeThemeId===theme.id && <span style={{fontSize:'.6rem',color:'var(--primary)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}}>✓</span>}
+            </div>
+          ))}
+          {THEMES.filter(t => !ownedThemes?.includes(t.id)).slice(0,2).map(theme => (
+            <div key={theme.id} className="profile-theme-chip" style={{opacity:0.45,cursor:'pointer'}} onClick={() => navigate('shop')}>
+              <div style={{display:'flex',gap:3,borderRadius:4,overflow:'hidden',filter:'grayscale(1)'}}>
+                {theme.preview.map((c,i) => <div key={i} style={{width:14,height:14,background:c}}/>)}
+              </div>
+              <span>{theme.name}</span>
+              <span style={{fontSize:'.65rem',color:'var(--text3)'}}>🔒</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Actions */}
+      {/* ── Actions ── */}
       <div className="profile-actions">
-        <button className="btn-ghost" onClick={() => navigate('shop')}>
-          Магазин
-        </button>
-        <button className="btn-primary" onClick={() => navigate('play')}>
-          Играть
-        </button>
-        <button
-          className="btn-ghost"
-          onClick={onSignOut}
-          style={{marginLeft:'auto', color:'var(--red)', borderColor:'rgba(192,57,43,0.3)'}}
-        >
+        <button className="btn-ghost" onClick={() => navigate('shop')}>Магазин</button>
+        <button className="btn-primary" onClick={() => navigate('play')}>Играть</button>
+        <button className="btn-ghost" onClick={onSignOut} style={{marginLeft:'auto',color:'var(--red)',borderColor:'rgba(192,57,43,0.3)'}}>
           Выйти из аккаунта
         </button>
       </div>
+
     </div>
   )
 }

@@ -127,12 +127,18 @@ export default function App() {
     const { data } = await sb.from('profiles').select('*').eq('id', uid).single()
     if (data) {
       setUser(u => ({ ...u, name: data.username || u.name, avatar: data.avatar }))
-      if (data.gems != null) setGems(data.gems)
+      // Supabase is the source of truth — always overwrite local state
+      setGems(data.gems ?? 0)
       if (data.owned_themes?.length) setOwnedThemes(data.owned_themes)
       if (data.owned_emojis?.length) setOwnedEmojis(data.owned_emojis)
-      if (data.wins != null) setUserWins(data.wins)
-      if (data.games_played != null) setGamesPlayed(data.games_played)
-      if (data.total_captures != null) setTotalCaptures(data.total_captures)
+      setUserWins(data.wins ?? 0)
+      setGamesPlayed(data.games_played ?? 0)
+      setTotalCaptures(data.total_captures ?? 0)
+      // Sync localStorage with Supabase values
+      localStorage.setItem('gems', String(data.gems ?? 0))
+      localStorage.setItem('wins', String(data.wins ?? 0))
+      localStorage.setItem('games_played', String(data.games_played ?? 0))
+      localStorage.setItem('total_captures', String(data.total_captures ?? 0))
     } else {
       // First Google OAuth login — create profile automatically
       const { data: { user: authUser } } = await sb.auth.getUser()

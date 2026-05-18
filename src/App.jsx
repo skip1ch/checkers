@@ -205,7 +205,7 @@ export default function App() {
     window.scrollTo(0, 0)
   }
 
-  function handleGameEnd(result) {
+  async function handleGameEnd(result) {
     let iWon = false
     if (result.mode === 'ai') iWon = result.winner === 'W'
     else if (result.mode === 'local') iWon = true
@@ -216,31 +216,38 @@ export default function App() {
       : 0
     const newGamesPlayed = gamesPlayed + 1
     const newTotalCaptures = totalCaptures + myCaps
+    const newWins = iWon ? userWins + 1 : userWins
+    const newGems = iWon ? gems + 50 : gems
+    const gemsEarned = iWon ? 50 : 0
+
+    // Update React state
     setGamesPlayed(newGamesPlayed)
     setTotalCaptures(newTotalCaptures)
+    if (iWon) { setUserWins(newWins); setGems(newGems) }
+
+    // Always sync localStorage immediately
     localStorage.setItem('games_played', String(newGamesPlayed))
     localStorage.setItem('total_captures', String(newTotalCaptures))
-
-    let gemsEarned = 0
     if (iWon) {
-      gemsEarned = 50
-      const newGems = gems + gemsEarned
-      const newWins = userWins + 1
-      setGems(newGems)
-      setUserWins(newWins)
-      localStorage.setItem('gems', String(newGems))
       localStorage.setItem('wins', String(newWins))
-      if (session) {
-        sb.from('profiles').update({ gems: newGems, wins: newWins, games_played: newGamesPlayed, total_captures: newTotalCaptures }).eq('id', session.user.id)
-      }
-      if (newWins >= 5 && !ownedEmojis.includes('bolt')) {
-        const newEmojis = [...ownedEmojis, 'bolt']
-        setOwnedEmojis(newEmojis)
-        localStorage.setItem('ownedEmojis', JSON.stringify(newEmojis))
-        if (session) sb.from('profiles').update({ owned_emojis: newEmojis }).eq('id', session.user.id)
-      }
-    } else if (session) {
-      sb.from('profiles').update({ games_played: newGamesPlayed, total_captures: newTotalCaptures }).eq('id', session.user.id)
+      localStorage.setItem('gems', String(newGems))
+    }
+
+    // Await Supabase update so it definitely saves before user navigates away
+    if (session) {
+      await sb.from('profiles').update({
+        games_played: newGamesPlayed,
+        total_captures: newTotalCaptures,
+        wins: newWins,
+        gems: newGems,
+      }).eq('id', session.user.id)
+    }
+
+    if (iWon && newWins >= 5 && !ownedEmojis.includes('bolt')) {
+      const newEmojis = [...ownedEmojis, 'bolt']
+      setOwnedEmojis(newEmojis)
+      localStorage.setItem('ownedEmojis', JSON.stringify(newEmojis))
+      if (session) sb.from('profiles').update({ owned_emojis: newEmojis }).eq('id', session.user.id)
     }
 
     setGameResult({ ...result, gemsEarned })

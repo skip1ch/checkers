@@ -35,7 +35,14 @@ export default function NavBar({ screen, navigate, session, user, gems, onSignOu
           </div>
           {session ? (
             <>
-              <span className="nav-user"><span>{user?.name || 'Игрок'}</span></span>
+              <button
+                className="nav-user"
+                onClick={() => navigate('profile')}
+                style={{background:'none',border:'none',cursor:'pointer',padding:0}}
+                title="Профиль"
+              >
+                <span>{user?.name || 'Игрок'}</span>
+              </button>
               <button className="btn-ghost btn-sm" onClick={onSignOut}>Выйти</button>
               <button className="btn-primary btn-sm" onClick={() => navigate('play')}>Начать партию</button>
             </>

@@ -11,6 +11,7 @@ import FriendLobby from './pages/FriendLobby'
 import PostGamePage from './pages/PostGamePage'
 import RulesPage from './pages/RulesPage'
 import ShopPage from './pages/ShopPage'
+import ProfilePage from './pages/ProfilePage'
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
@@ -38,6 +39,8 @@ export default function App() {
   const [ownedEmojis, setOwnedEmojis] = useState(['thumb','heart','smile','fire'])
   const [activeThemeId, setActiveThemeId] = useState(() => getSavedTheme())
   const [userWins, setUserWins] = useState(0)
+  const [gamesPlayed, setGamesPlayed] = useState(0)
+  const [totalCaptures, setTotalCaptures] = useState(0)
   const pendingNavRef = useRef(null)
   const pendingRoomRef = useRef(null)
 
@@ -47,10 +50,14 @@ export default function App() {
     const localThemes = JSON.parse(localStorage.getItem('ownedThemes') || '["classic","night","emerald"]')
     const localEmojis = JSON.parse(localStorage.getItem('ownedEmojis') || '["thumb","heart","smile","fire"]')
     const localWins = parseInt(localStorage.getItem('wins') || '0')
+    const localGamesPlayed = parseInt(localStorage.getItem('games_played') || '0')
+    const localTotalCaptures = parseInt(localStorage.getItem('total_captures') || '0')
     setGems(localGems)
     setOwnedThemes(localThemes)
     setOwnedEmojis(localEmojis)
     setUserWins(localWins)
+    setGamesPlayed(localGamesPlayed)
+    setTotalCaptures(localTotalCaptures)
   }, [])
 
   useEffect(() => {
@@ -124,6 +131,8 @@ export default function App() {
       if (data.owned_themes?.length) setOwnedThemes(data.owned_themes)
       if (data.owned_emojis?.length) setOwnedEmojis(data.owned_emojis)
       if (data.wins != null) setUserWins(data.wins)
+      if (data.games_played != null) setGamesPlayed(data.games_played)
+      if (data.total_captures != null) setTotalCaptures(data.total_captures)
     } else {
       // First Google OAuth login — create profile automatically
       const { data: { user: authUser } } = await sb.auth.getUser()
@@ -153,8 +162,12 @@ export default function App() {
     setOwnedThemes(['classic', 'night', 'emerald'])
     setOwnedEmojis(['thumb', 'heart', 'smile', 'fire'])
     setUserWins(0)
+    setGamesPlayed(0)
+    setTotalCaptures(0)
     localStorage.removeItem('gems')
     localStorage.removeItem('wins')
+    localStorage.removeItem('games_played')
+    localStorage.removeItem('total_captures')
     localStorage.removeItem('ownedThemes')
     localStorage.removeItem('ownedEmojis')
     setScreen('home')
@@ -177,6 +190,16 @@ export default function App() {
     else if (result.mode === 'local') iWon = true
     else iWon = (result.myColor === 'w') === (result.winner === 'W')
 
+    const myCaps = result.history
+      ? result.history.filter(m => m.white).reduce((s, m) => s + (m.caps?.length || 0), 0)
+      : 0
+    const newGamesPlayed = gamesPlayed + 1
+    const newTotalCaptures = totalCaptures + myCaps
+    setGamesPlayed(newGamesPlayed)
+    setTotalCaptures(newTotalCaptures)
+    localStorage.setItem('games_played', String(newGamesPlayed))
+    localStorage.setItem('total_captures', String(newTotalCaptures))
+
     let gemsEarned = 0
     if (iWon) {
       gemsEarned = 50
@@ -187,7 +210,7 @@ export default function App() {
       localStorage.setItem('gems', String(newGems))
       localStorage.setItem('wins', String(newWins))
       if (session) {
-        sb.from('profiles').update({ gems: newGems, wins: newWins }).eq('id', session.user.id)
+        sb.from('profiles').update({ gems: newGems, wins: newWins, games_played: newGamesPlayed, total_captures: newTotalCaptures }).eq('id', session.user.id)
       }
       if (newWins >= 5 && !ownedEmojis.includes('bolt')) {
         const newEmojis = [...ownedEmojis, 'bolt']
@@ -195,6 +218,8 @@ export default function App() {
         localStorage.setItem('ownedEmojis', JSON.stringify(newEmojis))
         if (session) sb.from('profiles').update({ owned_emojis: newEmojis }).eq('id', session.user.id)
       }
+    } else if (session) {
+      sb.from('profiles').update({ games_played: newGamesPlayed, total_captures: newTotalCaptures }).eq('id', session.user.id)
     }
 
     setGameResult({ ...result, gemsEarned })
@@ -225,6 +250,20 @@ export default function App() {
         onShowAuth={() => setShowAuth(true)}
       />
       <main style={{flex:1}}>
+        {screen==='profile' && (
+          <ProfilePage
+            navigate={navigate}
+            session={session}
+            user={user}
+            gems={gems}
+            ownedThemes={ownedThemes}
+            activeThemeId={activeThemeId}
+            userWins={userWins}
+            gamesPlayed={gamesPlayed}
+            totalCaptures={totalCaptures}
+            onSignOut={handleSignOut}
+          />
+        )}
         {screen==='home' && <HomeLanding navigate={navigate}/>}
         {screen==='rules' && <RulesPage navigate={navigate}/>}
         {screen==='play' && <PlayPicker navigate={navigate}/>}

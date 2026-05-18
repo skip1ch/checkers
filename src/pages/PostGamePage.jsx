@@ -10,8 +10,9 @@ export default function PostGamePage({ result, navigate }) {
   const won = mode === 'local'
     ? winner === 'W'
     : (winner === 'W') === (myColor === 'w')
-  const pCaps = history.filter(m=>m.white).reduce((s,m)=>s+m.caps.length,0)
-  const aCaps = history.filter(m=>!m.white).reduce((s,m)=>s+m.caps.length,0)
+  const iAm = mode !== 'friend' || myColor === 'w'
+  const pCaps = history.filter(m=> iAm ? m.white : !m.white).reduce((s,m)=>s+m.caps.length,0)
+  const aCaps = history.filter(m=> iAm ? !m.white : m.white).reduce((s,m)=>s+m.caps.length,0)
   const moves = history.length
   const total = pCaps+aCaps
   const eff = total>0 ? Math.round(pCaps/total*100) : 0
@@ -104,7 +105,7 @@ export default function PostGamePage({ result, navigate }) {
           <div className="chart-title">Ход партии</div>
           <div className="chart-subtitle">Накопленные взятия по ходам</div>
           <div className="chart-wrap">
-            <CaptureChart history={history} pCaps={pCaps} aCaps={aCaps}/>
+            <CaptureChart history={history} iAm={iAm}/>
           </div>
           <div className="stats-row">
             {[['Ходов',moves],['Взято',pCaps],['Потеряно',aCaps],['Эффект.',`${eff}%`],['Время',fmt(timer)]].map(([l,v])=>(

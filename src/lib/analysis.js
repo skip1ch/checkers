@@ -1,10 +1,15 @@
 export function generateReview(result) {
-  const { winner, history = [], mode = 'ai', level = 'medium' } = result || {};
-  const won = winner === 'W';
-  const wMoves = history.filter(m => m.white);
-  const bMoves = history.filter(m => !m.white);
-  const pCaps = wMoves.reduce((s, m) => s + m.caps.length, 0);
-  const aCaps = bMoves.reduce((s, m) => s + m.caps.length, 0);
+  const { winner, history = [], mode = 'ai', level = 'medium', myColor = 'w' } = result || {};
+  // iAm: true = player is white, false = player is black
+  const iAm = mode !== 'friend' || myColor === 'w';
+  const won = iAm ? winner === 'W' : winner === 'B';
+  const myMoves  = history.filter(m => iAm ? m.white : !m.white);
+  const oppMoves = history.filter(m => iAm ? !m.white : m.white);
+  const pCaps = myMoves.reduce((s, m) => s + m.caps.length, 0);
+  const aCaps = oppMoves.reduce((s, m) => s + m.caps.length, 0);
+  // keep aliases for tip text that references wMoves/bMoves
+  const wMoves = myMoves;
+  const bMoves = oppMoves;
   const moves = history.length;
   const total = pCaps + aCaps;
   const eff = total > 0 ? Math.round(pCaps / total * 100) : 50;
@@ -63,10 +68,11 @@ export function generateReview(result) {
 }
 
 export function calcScore(result) {
-  const { winner, history = [] } = result || {};
-  const won = winner === 'W';
-  const pCaps = history.filter(m => m.white).reduce((s, m) => s + m.caps.length, 0);
-  const aCaps = history.filter(m => !m.white).reduce((s, m) => s + m.caps.length, 0);
+  const { winner, history = [], mode = 'ai', myColor = 'w' } = result || {};
+  const iAm = mode !== 'friend' || myColor === 'w';
+  const won = iAm ? winner === 'W' : winner === 'B';
+  const pCaps = history.filter(m => iAm ? m.white : !m.white).reduce((s, m) => s + m.caps.length, 0);
+  const aCaps = history.filter(m => iAm ? !m.white : m.white).reduce((s, m) => s + m.caps.length, 0);
   const moves = history.length;
   const total = pCaps + aCaps;
   const eff = total > 0 ? pCaps / total : 0.5;

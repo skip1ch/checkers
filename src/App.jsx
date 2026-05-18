@@ -58,7 +58,11 @@ export default function App() {
     const roomCode = params.get('room')
     const payment = params.get('payment')
     const gemsParam = params.get('gems')
-    window.history.replaceState({}, '', window.location.pathname)
+
+    // Only clear URL for params we handle — don't touch OAuth ?code= flow
+    if (roomCode || payment) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
 
     if (roomCode) pendingRoomRef.current = roomCode
 
@@ -117,15 +121,42 @@ export default function App() {
     if (data) {
       setUser(u => ({ ...u, name: data.username || u.name, avatar: data.avatar }))
       if (data.gems != null) setGems(data.gems)
-      if (data.owned_themes) setOwnedThemes(data.owned_themes)
-      if (data.owned_emojis) setOwnedEmojis(data.owned_emojis)
+      if (data.owned_themes?.length) setOwnedThemes(data.owned_themes)
+      if (data.owned_emojis?.length) setOwnedEmojis(data.owned_emojis)
       if (data.wins != null) setUserWins(data.wins)
+    } else {
+      // First Google OAuth login — create profile automatically
+      const { data: { user: authUser } } = await sb.auth.getUser()
+      if (authUser) {
+        const username = authUser.user_metadata?.full_name
+          || authUser.user_metadata?.name
+          || authUser.email?.split('@')[0]
+          || 'Игрок'
+        await sb.from('profiles').upsert({
+          id: uid,
+          username,
+          gems: 0,
+          wins: 0,
+          owned_themes: ['classic', 'night', 'emerald'],
+          owned_emojis: ['thumb', 'heart', 'smile', 'fire'],
+        })
+        setUser(u => ({ ...u, name: username }))
+      }
     }
   }
 
   async function handleSignOut() {
     await sb.auth.signOut()
     setSession(null)
+    setUser({ name: 'Игрок' })
+    setGems(0)
+    setOwnedThemes(['classic', 'night', 'emerald'])
+    setOwnedEmojis(['thumb', 'heart', 'smile', 'fire'])
+    setUserWins(0)
+    localStorage.removeItem('gems')
+    localStorage.removeItem('wins')
+    localStorage.removeItem('ownedThemes')
+    localStorage.removeItem('ownedEmojis')
     setScreen('home')
   }
 

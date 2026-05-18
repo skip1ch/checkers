@@ -38,15 +38,16 @@ function getNextRank(games) {
 }
 
 function calcSkills(wins, gamesPlayed, totalCaptures, gems) {
-  const wr = gamesPlayed > 0 ? wins / gamesPlayed : 0
-  const cpg = gamesPlayed > 0 ? totalCaptures / gamesPlayed : 0
+  if (gamesPlayed === 0) return [0, 0, 0, 0, 0, 0]
+  const wr = wins / gamesPlayed
+  const cpg = totalCaptures / gamesPlayed
   return [
     Math.min(20, Math.round(cpg * 1.8)),
-    Math.round(wr * 20),
+    Math.min(20, Math.round(wr * 20)),
     Math.min(20, Math.round(Math.log10(gamesPlayed + 1) * 13)),
-    Math.min(20, Math.round(10 + wr * 8)),
+    Math.min(20, Math.round(2 + wr * 18)),
     Math.min(20, Math.round(wr * 13 + Math.min(7, gamesPlayed / 5))),
-    Math.min(20, Math.max(6, Math.round(gems / 60 + 8))),
+    Math.min(20, Math.round(Math.min(1, gems / 500) * 14 + wr * 6)),
   ]
 }
 
@@ -274,12 +275,16 @@ export default function ProfilePage({ navigate, session, user, gems, ownedThemes
       <div className="profile-charts">
         <div className="profile-chart-card">
           <div className="profile-chart-title">Навыки игрока</div>
-          {played === 0 && (
-            <div style={{textAlign:'center',padding:'16px 0 8px',fontSize:'.8rem',color:'var(--text3)'}}>Сыграй партию — и здесь появятся твои навыки</div>
+          {played === 0 ? (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:220,flexDirection:'column',gap:10}}>
+              <span style={{fontSize:'2rem'}}>⚔️</span>
+              <div style={{textAlign:'center',fontSize:'.85rem',color:'var(--text3)'}}>Сыграй партию —<br/>и здесь появятся твои навыки</div>
+            </div>
+          ) : (
+            <div className="profile-chart-wrap">
+              <canvas ref={radarRef}/>
+            </div>
           )}
-          <div className="profile-chart-wrap">
-            <canvas ref={radarRef}/>
-          </div>
         </div>
         <div className="profile-chart-card">
           <div className="profile-chart-title">Победы и поражения</div>

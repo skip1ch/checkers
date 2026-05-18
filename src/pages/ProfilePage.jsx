@@ -275,16 +275,12 @@ export default function ProfilePage({ navigate, session, user, gems, ownedThemes
       <div className="profile-charts">
         <div className="profile-chart-card">
           <div className="profile-chart-title">Навыки игрока</div>
-          {played === 0 ? (
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:220,flexDirection:'column',gap:10}}>
-              <span style={{fontSize:'2rem'}}>⚔️</span>
-              <div style={{textAlign:'center',fontSize:'.85rem',color:'var(--text3)'}}>Сыграй партию —<br/>и здесь появятся твои навыки</div>
-            </div>
-          ) : (
-            <div className="profile-chart-wrap">
-              <canvas ref={radarRef}/>
-            </div>
+          {played === 0 && (
+            <div style={{textAlign:'center',fontSize:'.78rem',color:'var(--text3)',marginBottom:8}}>Сыграй партию — и здесь появятся твои навыки</div>
           )}
+          <div className="profile-chart-wrap">
+            <canvas ref={radarRef}/>
+          </div>
         </div>
         <div className="profile-chart-card">
           <div className="profile-chart-title">Победы и поражения</div>

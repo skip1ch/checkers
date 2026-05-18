@@ -133,12 +133,13 @@ export default function ProfilePage({ navigate, session, user, gems, ownedThemes
       options: {
         responsive: true, maintainAspectRatio: false,
         animation: { duration: 600 },
+        layout: { padding: { top: 12, bottom: 12, left: 16, right: 16 } },
         scales: {
           r: {
             min: 0, max: 20,
             grid: { color: 'rgba(107,68,35,0.12)' },
             angleLines: { color: 'rgba(107,68,35,0.12)' },
-            pointLabels: { font: { size: 12, family: 'Inter' }, color: '#6b5040' },
+            pointLabels: { font: { size: 11, family: 'Inter' }, color: '#6b5040', padding: 6 },
             ticks: { display: false, stepSize: 5 },
           },
         },
@@ -267,23 +268,6 @@ export default function ProfilePage({ navigate, session, user, gems, ownedThemes
             </div>
           )}
         </div>
-      </div>
-
-      {/* ── Stats ── */}
-      <div className="profile-stats">
-        {[
-          { icon:'🎮', val: played, lbl:'Игр сыграно' },
-          { icon:'🏆', val: wins,   lbl:'Побед' },
-          { icon:'📉', val: losses, lbl:'Поражений' },
-          { icon:'🎯', val:`${winPct}%`, lbl:'% побед' },
-          { icon:'⚔️',  val: captures, lbl:'Захватов' },
-        ].map(({ icon, val, lbl }) => (
-          <div key={lbl} className="profile-stat">
-            <div style={{fontSize:'1.4rem',marginBottom:4}}>{icon}</div>
-            <div className="profile-stat-val">{val}</div>
-            <div className="profile-stat-lbl">{lbl}</div>
-          </div>
-        ))}
       </div>
 
       {/* ── Charts ── */}

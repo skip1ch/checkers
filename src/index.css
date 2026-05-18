@@ -403,7 +403,7 @@ a{color:inherit;text-decoration:none;}
 .profile-charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
 .profile-chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;box-shadow:0 1px 4px rgba(107,68,35,0.04);}
 .profile-chart-title{font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;}
-.profile-chart-wrap{position:relative;height:240px;}
+.profile-chart-wrap{position:relative;height:260px;overflow:hidden;}
 .profile-themes{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;margin-bottom:24px;}
 .profile-themes-title{font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
 .profile-themes-grid{display:flex;gap:10px;flex-wrap:wrap;}

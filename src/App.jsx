@@ -262,6 +262,7 @@ export default function App() {
             gamesPlayed={gamesPlayed}
             totalCaptures={totalCaptures}
             onSignOut={handleSignOut}
+            onRename={name => setUser(u => ({ ...u, name }))}
           />
         )}
         {screen==='home' && <HomeLanding navigate={navigate}/>}

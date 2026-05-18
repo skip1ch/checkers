@@ -26,6 +26,18 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
   const wtRef = useRef(wt)
   wtRef.current = wt
   const floatTimer = useRef(null)
+  const statsFiredRef = useRef(false)
+
+  // Fire stats once when game ends, regardless of which button user clicks
+  function fireEnd(showReplay = false) {
+    if (!statsFiredRef.current) {
+      statsFiredRef.current = true
+      onGameEnd({ winner: gameResult, history, mode, level, timer, myColor, showReplay })
+    } else if (showReplay) {
+      // Stats already saved (user clicked another button first then somehow replay) — just navigate
+      navigate('postgame')
+    }
+  }
 
   useEffect(() => {
     if (gameResult) return
@@ -130,6 +142,7 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
   }
 
   function resetGame() {
+    statsFiredRef.current = false  // allow stats to fire again for new game
     const nb = GL.init()
     setBoard(nb); setWt(true)
     setSel(null); setSelMoves([])
@@ -197,9 +210,9 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
             })()}
             <p className="go-sub">{history.length} ходов · {String(Math.floor(timer/60)).padStart(2,'0')}:{String(timer%60).padStart(2,'0')}</p>
             <div className="go-btns">
-              <button className="btn-primary" onClick={() => onGameEnd({ winner:gameResult, history, mode, level, timer, myColor })}>Разбор партии →</button>
-              <button className="btn-border btn-full" onClick={resetGame}>Ещё раз</button>
-              <button className="btn-border btn-full" onClick={() => navigate('play')}>Сменить режим</button>
+              <button className="btn-primary" onClick={() => fireEnd(true)}>Разбор партии →</button>
+              <button className="btn-border btn-full" onClick={() => { fireEnd(false); resetGame() }}>Ещё раз</button>
+              <button className="btn-border btn-full" onClick={() => { fireEnd(false); navigate('play') }}>Сменить режим</button>
             </div>
           </div>
         </div>

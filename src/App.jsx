@@ -250,9 +250,11 @@ export default function App() {
       if (session) sb.from('profiles').update({ owned_emojis: newEmojis }).eq('id', session.user.id)
     }
 
-    setGameResult({ ...result, gemsEarned })
-    setScreen('postgame')
-    window.scrollTo(0, 0)
+    if (result.showReplay) {
+      setGameResult({ ...result, gemsEarned })
+      setScreen('postgame')
+      window.scrollTo(0, 0)
+    }
   }
 
   if (session === undefined) {

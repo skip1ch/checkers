@@ -86,7 +86,7 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
     ch.on('broadcast', {event:'emoji'}, ({payload}) => {
       setOppEmoji({ char: payload.char, key: Date.now() })
       clearTimeout(floatTimer.current)
-      floatTimer.current = setTimeout(() => setOppEmoji(null), 2200)
+      floatTimer.current = setTimeout(() => setOppEmoji(null), 2400)
     })
     ch.subscribe()
     return () => ch.unsubscribe()
@@ -94,9 +94,9 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
 
   function sendEmoji(char) {
     setMyEmoji({ char, key: Date.now() })
-    setTimeout(() => setMyEmoji(null), 2200)
+    setTimeout(() => setMyEmoji(null), 2400)
     if (chRef.current) {
-      chRef.current.send({ type:'broadcast', event:'emoji', payload:{ char } })
+      chRef.current.send({ type:'broadcast', event:'emoji', payload: { char } })
     }
   }
 

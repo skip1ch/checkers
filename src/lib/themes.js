@@ -74,14 +74,14 @@ export const THEMES = [
 ]
 
 export const EMOJIS = [
-  { id: 'thumb', char: '👍', name: 'Лайк', price: 0, req: null },
-  { id: 'heart', char: '❤️', name: 'Сердце', price: 0, req: null },
-  { id: 'smile', char: '😄', name: 'Радость', price: 0, req: null },
-  { id: 'fire', char: '🔥', name: 'Огонь', price: 0, req: null },
-  { id: 'crown', char: '👑', name: 'Корона', price: 100, req: null },
+  { id: 'thumb',  char: '👍', name: 'Лайк',       price: 0,   req: null },
+  { id: 'heart',  char: '❤️', name: 'Сердце',     price: 0,   req: null },
+  { id: 'smile',  char: '😄', name: 'Радость',    price: 0,   req: null },
+  { id: 'fire',   char: '🔥', name: 'Огонь',      price: 0,   req: null },
+  { id: 'crown',  char: '👑', name: 'Корона',     price: 100, req: null },
   { id: 'target', char: '🎯', name: 'В яблочко', price: 150, req: null },
-  { id: 'star', char: '🌟', name: 'Звезда', price: 200, req: null },
-  { id: 'bolt', char: '⚡', name: 'Молния', price: 0, req: { wins: 5 } },
+  { id: 'star',   char: '🌟', name: 'Звезда',     price: 200, req: null },
+  { id: 'bolt',   char: '⚡', name: 'Молния',     price: 0,   req: { wins: 5 } },
 ]
 
 export const GEM_PACKAGES = [

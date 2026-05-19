@@ -74,13 +74,27 @@ export const THEMES = [
 ]
 
 export const EMOJIS = [
-  { id: 'thumb',  char: '👍', name: 'Лайк',       price: 0,   req: null },
-  { id: 'heart',  char: '❤️', name: 'Сердце',     price: 0,   req: null },
-  { id: 'smile',  char: '😄', name: 'Радость',    price: 0,   req: null },
-  { id: 'fire',   char: '🔥', name: 'Огонь',      price: 0,   req: null },
-  { id: 'crown',  char: '👑', name: 'Корона',     price: 100, req: null },
-  { id: 'target', char: '🎯', name: 'В яблочко', price: 150, req: null },
-  { id: 'star',   char: '🌟', name: 'Звезда',     price: 200, req: null },
+  // Free defaults
+  { id: 'shush',  char: '🤫', name: 'Тихо',       price: 0,   req: null },
+  { id: 'wait',   char: '⏳', name: 'Жди',        price: 0,   req: null },
+  { id: 'cry',    char: '😭', name: 'Плачу',      price: 0,   req: null },
+  { id: 'lol',    char: '🤣', name: 'Смеюсь',     price: 0,   req: null },
+  { id: 'shake',  char: '🤝', name: 'Рукопожатие',price: 0,   req: null },
+  // Premium paid
+  { id: 'devil',  char: '😈', name: 'Дьявол',     price: 100, req: null },
+  { id: 'skull',  char: '💀', name: 'Череп',      price: 100, req: null },
+  { id: 'cold',   char: '🥶', name: 'Холодно',    price: 150, req: null },
+  { id: 'luck',   char: '🍀', name: 'Удача',      price: 150, req: null },
+  { id: 'cool',   char: '😎', name: 'Круто',      price: 200, req: null },
+  { id: 'clown',  char: '🤡', name: 'Клоун',      price: 200, req: null },
+  { id: 'sigh',   char: '😮‍💨', name: 'Выдох',    price: 250, req: null },
+  { id: 'salute', char: '🫡', name: 'Честь',      price: 250, req: null },
+  { id: 'mind',   char: '🤯', name: 'Взрыв',      price: 300, req: null },
+  { id: 'alien',  char: '👽', name: 'Пришелец',   price: 350, req: null },
+  { id: 'crown',  char: '👑', name: 'Корона',     price: 400, req: null },
+  { id: 'target', char: '🎯', name: 'В яблочко',  price: 400, req: null },
+  { id: 'star',   char: '🌟', name: 'Звезда',     price: 500, req: null },
+  // Achievement
   { id: 'bolt',   char: '⚡', name: 'Молния',     price: 0,   req: { wins: 5 } },
 ]
 

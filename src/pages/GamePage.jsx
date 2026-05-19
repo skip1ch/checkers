@@ -8,7 +8,7 @@ import GameInfoSidebar from '../components/GameInfoSidebar'
 
 const LEVEL_LABEL = { easy:'Лёгкий', medium:'Средний', hard:'Сложный' }
 
-export default function GamePage({ mode, level, roomCode, myColor, oppName, ownedEmojis = ['thumb','heart','smile','fire'], onGameEnd, navigate }) {
+export default function GamePage({ mode, level, roomCode, myColor, oppName, ownedEmojis = ['shush','wait','cry','lol','shake'], onGameEnd, navigate }) {
   const [board, setBoard] = useState(() => GL.init())
   const [wt, setWt] = useState(true)
   const [sel, setSel] = useState(null)
@@ -33,12 +33,26 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
   function fireEnd(showReplay = false) {
     if (!statsFiredRef.current) {
       statsFiredRef.current = true
+      localStorage.removeItem('activeMatch')
       onGameEnd({ winner: gameResult, history, mode, level, timer, myColor, showReplay })
     } else if (showReplay) {
       // Stats already saved (user clicked another button first then somehow replay) — just navigate
       navigate('postgame')
     }
   }
+
+  useEffect(() => {
+    if (mode === 'friend' && roomCode) {
+      localStorage.setItem('activeMatch', JSON.stringify({
+        roomCode, myColor, oppName: oppName || '', ts: Date.now()
+      }))
+    }
+    return () => {
+      if (statsFiredRef.current) {
+        localStorage.removeItem('activeMatch')
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (gameResult) return
@@ -87,6 +101,13 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
       setOppEmoji({ char: payload.char, key: Date.now() })
       clearTimeout(floatTimer.current)
       floatTimer.current = setTimeout(() => setOppEmoji(null), 2400)
+    })
+    ch.on('broadcast', {event:'resign'}, () => {
+      // opponent resigned — I win
+      const myWinColor = myColor === 'w' ? 'W' : 'B'
+      setGameResult(myWinColor)
+      playSound('win')
+      localStorage.removeItem('activeMatch')
     })
     ch.subscribe()
     return () => ch.unsubscribe()
@@ -167,6 +188,20 @@ export default function GamePage({ mode, level, roomCode, myColor, oppName, owne
         <div className="game-header-btns">
           <button className="btn-border" onClick={resetGame}>Новая партия</button>
           <button className="btn-primary btn-sm" onClick={() => navigate('play')}>Сменить режим</button>
+          {!gameResult && mode === 'friend' && (
+            <button className="btn-ghost btn-sm" style={{color:'var(--red)',borderColor:'rgba(192,57,43,0.3)'}} onClick={() => {
+              if (window.confirm('Вы уверены? Это засчитается как поражение.')) {
+                const oppColor = myColor === 'w' ? 'B' : 'W'
+                if (chRef.current) chRef.current.send({ type:'broadcast', event:'resign', payload:{} })
+                setGameResult(oppColor)
+                playSound('lose')
+                localStorage.removeItem('activeMatch')
+              }
+            }}>Сдаться</button>
+          )}
+          {!gameResult && (mode === 'ai' || mode === 'local') && (
+            <button className="btn-ghost btn-sm" style={{color:'var(--text2)'}} onClick={() => navigate('play')}>Завершить</button>
+          )}
         </div>
       </div>
 

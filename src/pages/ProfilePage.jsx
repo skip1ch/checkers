@@ -64,7 +64,7 @@ function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function ProfilePage({ navigate, session, user, gems, ownedThemes, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename }) {
+export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename }) {
   const radarRef = useRef(null)
   const donutRef = useRef(null)
   const radarChart = useRef(null)
@@ -249,28 +249,20 @@ export default function ProfilePage({ navigate, session, user, gems, ownedThemes
             <div style={{fontSize:'.75rem',color:'var(--text3)',marginBottom:10}}>Участник с {formatDate(session.user.created_at)}</div>
           )}
 
-          {/* Rank + gems row */}
-          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-            <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${rank.color}18`,border:`1.5px solid ${rank.color}40`,borderRadius:99,padding:'5px 14px',fontSize:'.85rem',fontWeight:700,color:rank.color}}>
-              <span>{rank.emoji}</span> {rank.label}
+          {/* Rank badge */}
+          <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${rank.color}18`,border:`1.5px solid ${rank.color}40`,borderRadius:99,padding:'5px 14px',fontSize:'.85rem',fontWeight:700,color:rank.color,marginBottom:6}}>
+            <span>{rank.emoji}</span> {rank.label}
+          </div>
+
+          {/* Trophies + gems row */}
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginTop:4}}>
+            <div style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(201,162,39,0.12)',border:'1.5px solid rgba(201,162,39,0.35)',borderRadius:99,padding:'6px 16px',fontSize:'1rem',fontWeight:700,color:'#8a6a00'}}>
+              🏆 {trophies} кубков
             </div>
-            <div style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(41,182,246,0.1)',border:'1.5px solid rgba(41,182,246,0.3)',borderRadius:99,padding:'5px 14px',fontSize:'.85rem',fontWeight:700,color:'#0277bd'}}>
+            <div style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(41,182,246,0.1)',border:'1.5px solid rgba(41,182,246,0.3)',borderRadius:99,padding:'6px 16px',fontSize:'1rem',fontWeight:700,color:'#0277bd'}}>
               <GemIcon size={15}/> {gems ?? 0}
             </div>
           </div>
-
-          {/* Rank progress */}
-          {nextRank && (
-            <div style={{marginTop:10}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:'.68rem',color:'var(--text3)',marginBottom:4}}>
-                <span>{rank.label}</span>
-                <span>{played} / {nextRank.min} игр → {nextRank.emoji} {nextRank.label}</span>
-              </div>
-              <div style={{height:5,background:'var(--surface2)',borderRadius:99,overflow:'hidden'}}>
-                <div style={{height:'100%',width:`${rankProgress}%`,background:`linear-gradient(90deg, ${rank.color}, ${nextRank.color})`,borderRadius:99,transition:'width .6s'}}/>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -320,6 +312,44 @@ export default function ProfilePage({ navigate, session, user, gems, ownedThemes
           ))}
         </div>
       </div>
+
+      {/* ── Match History ── */}
+      {(() => {
+        const matchHistory = JSON.parse(localStorage.getItem('match_history') || '[]').slice(0, 10)
+        const modeIcon = (m) => m === 'ai' ? '🤖' : m === 'friend' ? '🤝' : '👥'
+        const shortDate = (iso) => {
+          const d = new Date(iso)
+          return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+        }
+        return (
+          <div className="match-history">
+            <div className="match-history-title">История матчей</div>
+            {matchHistory.length === 0 ? (
+              <div style={{textAlign:'center',color:'var(--text3)',fontSize:'.85rem',padding:'16px 0'}}>Нет матчей</div>
+            ) : (
+              matchHistory.map(h => (
+                <div key={h.id} className="match-row">
+                  <span style={{fontSize:'1.1rem'}}>{modeIcon(h.mode)}</span>
+                  <span style={{flex:1,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{h.opponent}</span>
+                  <span className={h.won ? 'match-result-win' : 'match-result-loss'}>
+                    {h.won ? '✅ Победа' : '❌ Поражение'}
+                  </span>
+                  {h.gemsEarned > 0 && (
+                    <span style={{color:'#0277bd',fontWeight:700,fontSize:'.8rem'}}>+{h.gemsEarned} 💎</span>
+                  )}
+                  {h.trophiesEarned > 0 && (
+                    <span style={{color:'#8a6a00',fontWeight:700,fontSize:'.8rem'}}>+{h.trophiesEarned} 🏆</span>
+                  )}
+                  {h.trophiesEarned < 0 && (
+                    <span style={{color:'var(--red)',fontWeight:700,fontSize:'.8rem'}}>{h.trophiesEarned} 🏆</span>
+                  )}
+                  <span style={{color:'var(--text3)',fontSize:'.75rem',flexShrink:0}}>{shortDate(h.date)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── Actions ── */}
       <div className="profile-actions">

@@ -35,26 +35,33 @@ export default function App() {
   const [user, setUser] = useState({ name:'Игрок' })
   const [gameResult, setGameResult] = useState(null)
   const [gems, setGems] = useState(0)
+  const [trophies, setTrophies] = useState(0)
   const [ownedThemes, setOwnedThemes] = useState(['classic','night','emerald'])
-  const [ownedEmojis, setOwnedEmojis] = useState(['thumb','heart','smile','fire'])
+  const [ownedEmojis, setOwnedEmojis] = useState(['shush','wait','cry','lol','shake'])
   const [activeThemeId, setActiveThemeId] = useState(() => getSavedTheme())
   const [userWins, setUserWins] = useState(0)
   const [gamesPlayed, setGamesPlayed] = useState(0)
   const [totalCaptures, setTotalCaptures] = useState(0)
+  const [rejoinMatch, setRejoinMatch] = useState(null)
   const pendingNavRef = useRef(null)
   const pendingRoomRef = useRef(null)
 
   useEffect(() => {
     applyTheme(getSavedTheme())
     const localGems = parseInt(localStorage.getItem('gems') || '0')
+    const localTrophies = parseInt(localStorage.getItem('trophies') || '0')
     const localThemes = JSON.parse(localStorage.getItem('ownedThemes') || '["classic","night","emerald"]')
-    const localEmojis = JSON.parse(localStorage.getItem('ownedEmojis') || '["thumb","heart","smile","fire"]')
+    const localEmojis = JSON.parse(localStorage.getItem('ownedEmojis') || '["shush","wait","cry","lol","shake"]')
     const localWins = parseInt(localStorage.getItem('wins') || '0')
     const localGamesPlayed = parseInt(localStorage.getItem('games_played') || '0')
     const localTotalCaptures = parseInt(localStorage.getItem('total_captures') || '0')
     setGems(localGems)
+    setTrophies(localTrophies)
     setOwnedThemes(localThemes)
-    setOwnedEmojis(localEmojis)
+    // Migrate old default emojis to new defaults
+    const OLD_DEFAULTS = ['thumb','heart','smile','fire']
+    const isOldDefault = localEmojis.length === 4 && OLD_DEFAULTS.every(id => localEmojis.includes(id))
+    setOwnedEmojis(isOldDefault ? ['shush','wait','cry','lol','shake'] : localEmojis)
     setUserWins(localWins)
     setGamesPlayed(localGamesPlayed)
     setTotalCaptures(localTotalCaptures)
@@ -123,14 +130,32 @@ export default function App() {
     }
   }, [session])
 
+  useEffect(() => {
+    const saved = localStorage.getItem('activeMatch')
+    if (!saved) return
+    try {
+      const m = JSON.parse(saved)
+      if (Date.now() - m.ts < 10 * 60 * 1000) {
+        setRejoinMatch(m)
+      } else {
+        localStorage.removeItem('activeMatch')
+      }
+    } catch { localStorage.removeItem('activeMatch') }
+  }, [])
+
   async function loadProfile(uid) {
     const { data } = await sb.from('profiles').select('*').eq('id', uid).single()
     if (data) {
       setUser(u => ({ ...u, name: data.username || u.name, avatar: data.avatar }))
       // Supabase is the source of truth — always overwrite local state
       setGems(data.gems ?? 0)
+      setTrophies(data.trophies ?? 0)
       if (data.owned_themes?.length) setOwnedThemes(data.owned_themes)
-      if (data.owned_emojis?.length) setOwnedEmojis(data.owned_emojis)
+      if (data.owned_emojis?.length) {
+        const OLD_DEFAULTS = ['thumb','heart','smile','fire']
+        const isOldDefault = data.owned_emojis.length === 4 && OLD_DEFAULTS.every(id => data.owned_emojis.includes(id))
+        setOwnedEmojis(isOldDefault ? ['shush','wait','cry','lol','shake'] : data.owned_emojis)
+      }
       // For wins/games/captures: take the higher of Supabase or localStorage
       // (guards against missing DB columns silently returning null)
       const dbWins = data.wins ?? 0
@@ -151,6 +176,7 @@ export default function App() {
       }
       // Sync localStorage
       localStorage.setItem('gems', String(data.gems ?? 0))
+      localStorage.setItem('trophies', String(data.trophies ?? 0))
       localStorage.setItem('wins', String(safeWins))
       localStorage.setItem('games_played', String(safeGames))
       localStorage.setItem('total_captures', String(safeCaptures))
@@ -167,8 +193,9 @@ export default function App() {
           username,
           gems: 0,
           wins: 0,
+          trophies: 0,
           owned_themes: ['classic', 'night', 'emerald'],
-          owned_emojis: ['thumb', 'heart', 'smile', 'fire'],
+          owned_emojis: ['shush', 'wait', 'cry', 'lol', 'shake'],
         })
         setUser(u => ({ ...u, name: username }))
       }
@@ -180,17 +207,21 @@ export default function App() {
     setSession(null)
     setUser({ name: 'Игрок' })
     setGems(0)
+    setTrophies(0)
     setOwnedThemes(['classic', 'night', 'emerald'])
-    setOwnedEmojis(['thumb', 'heart', 'smile', 'fire'])
+    setOwnedEmojis(['shush', 'wait', 'cry', 'lol', 'shake'])
     setUserWins(0)
     setGamesPlayed(0)
     setTotalCaptures(0)
+    setRejoinMatch(null)
     localStorage.removeItem('gems')
+    localStorage.removeItem('trophies')
     localStorage.removeItem('wins')
     localStorage.removeItem('games_played')
     localStorage.removeItem('total_captures')
     localStorage.removeItem('ownedThemes')
     localStorage.removeItem('ownedEmojis')
+    localStorage.removeItem('activeMatch')
     setScreen('home')
   }
 
@@ -220,18 +251,45 @@ export default function App() {
     const newGems = iWon ? gems + 50 : gems
     const gemsEarned = iWon ? 50 : 0
 
+    // Trophy logic
+    let trophiesEarned = 0
+    if (result.mode === 'ai' && iWon) {
+      trophiesEarned = result.level === 'easy' ? 5 : result.level === 'medium' ? 10 : 20
+    } else if (result.mode === 'friend') {
+      trophiesEarned = iWon ? 25 : -5
+    }
+    const newTrophies = Math.max(0, trophies + trophiesEarned)
+
     // Update React state
     setGamesPlayed(newGamesPlayed)
     setTotalCaptures(newTotalCaptures)
+    setTrophies(newTrophies)
     if (iWon) { setUserWins(newWins); setGems(newGems) }
 
     // Always sync localStorage immediately
     localStorage.setItem('games_played', String(newGamesPlayed))
     localStorage.setItem('total_captures', String(newTotalCaptures))
+    localStorage.setItem('trophies', String(newTrophies))
     if (iWon) {
       localStorage.setItem('wins', String(newWins))
       localStorage.setItem('gems', String(newGems))
     }
+
+    // Save match history entry (last 20)
+    const histEntry = {
+      id: Date.now(),
+      mode: result.mode,
+      level: result.level,
+      opponent: result.oppName || (result.mode === 'ai' ? `ИИ · ${result.level === 'easy' ? 'Лёгкий' : result.level === 'medium' ? 'Средний' : 'Сложный'}` : result.mode === 'local' ? 'Вдвоём' : 'Друг'),
+      won: iWon,
+      gemsEarned,
+      trophiesEarned,
+      moves: result.history?.length || 0,
+      timer: result.timer || 0,
+      date: new Date().toISOString(),
+    }
+    const prevHist = JSON.parse(localStorage.getItem('match_history') || '[]')
+    localStorage.setItem('match_history', JSON.stringify([histEntry, ...prevHist].slice(0, 20)))
 
     // Await Supabase update so it definitely saves before user navigates away
     if (session) {
@@ -240,6 +298,7 @@ export default function App() {
         total_captures: newTotalCaptures,
         wins: newWins,
         gems: newGems,
+        trophies: newTrophies,
       }).eq('id', session.user.id)
     }
 
@@ -280,12 +339,25 @@ export default function App() {
         onShowAuth={() => setShowAuth(true)}
       />
       <main style={{flex:1}}>
+        {rejoinMatch && screen !== 'game' && (
+          <div className="rejoin-banner">
+            <span>♟️ У вас есть активный матч с {rejoinMatch.oppName || 'другом'}!</span>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn-primary btn-sm" onClick={() => {
+                setRejoinMatch(null)
+                navigate('game', { mode:'friend', roomCode: rejoinMatch.roomCode, myColor: rejoinMatch.myColor, oppName: rejoinMatch.oppName })
+              }}>Вернуться</button>
+              <button className="btn-ghost btn-sm" onClick={() => { setRejoinMatch(null); localStorage.removeItem('activeMatch') }}>Закрыть</button>
+            </div>
+          </div>
+        )}
         {screen==='profile' && (
           <ProfilePage
             navigate={navigate}
             session={session}
             user={user}
             gems={gems}
+            trophies={trophies}
             ownedThemes={ownedThemes}
             activeThemeId={activeThemeId}
             userWins={userWins}

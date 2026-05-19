@@ -3,6 +3,7 @@ import { sb } from './lib/supabase'
 import { applyTheme, getSavedTheme } from './lib/themes'
 import NavBar from './components/NavBar'
 import AuthModal from './components/AuthModal'
+import ConfirmModal from './components/ConfirmModal'
 import Footer from './components/Footer'
 import HomeLanding from './pages/HomeLanding'
 import PlayPicker from './pages/PlayPicker'
@@ -12,6 +13,8 @@ import PostGamePage from './pages/PostGamePage'
 import RulesPage from './pages/RulesPage'
 import ShopPage from './pages/ShopPage'
 import ProfilePage from './pages/ProfilePage'
+
+const DEFAULT_EMOJIS = ['shush','wait','cry','lol','shake','clap','think']
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
@@ -37,12 +40,14 @@ export default function App() {
   const [gems, setGems] = useState(0)
   const [trophies, setTrophies] = useState(0)
   const [ownedThemes, setOwnedThemes] = useState(['classic','night','emerald'])
-  const [ownedEmojis, setOwnedEmojis] = useState(['shush','wait','cry','lol','shake'])
+  const [ownedEmojis, setOwnedEmojis] = useState(DEFAULT_EMOJIS)
+  const [selectedEmojis, setSelectedEmojis] = useState(DEFAULT_EMOJIS)
   const [activeThemeId, setActiveThemeId] = useState(() => getSavedTheme())
   const [userWins, setUserWins] = useState(0)
   const [gamesPlayed, setGamesPlayed] = useState(0)
   const [totalCaptures, setTotalCaptures] = useState(0)
   const [rejoinMatch, setRejoinMatch] = useState(null)
+  const [showSignOutModal, setShowSignOutModal] = useState(false)
   const pendingNavRef = useRef(null)
   const pendingRoomRef = useRef(null)
 
@@ -51,17 +56,20 @@ export default function App() {
     const localGems = parseInt(localStorage.getItem('gems') || '0')
     const localTrophies = parseInt(localStorage.getItem('trophies') || '0')
     const localThemes = JSON.parse(localStorage.getItem('ownedThemes') || '["classic","night","emerald"]')
-    const localEmojis = JSON.parse(localStorage.getItem('ownedEmojis') || '["shush","wait","cry","lol","shake"]')
+    const localEmojis = JSON.parse(localStorage.getItem('ownedEmojis') || 'null') || DEFAULT_EMOJIS
+    const localSelected = JSON.parse(localStorage.getItem('selectedEmojis') || 'null') || DEFAULT_EMOJIS
     const localWins = parseInt(localStorage.getItem('wins') || '0')
     const localGamesPlayed = parseInt(localStorage.getItem('games_played') || '0')
     const localTotalCaptures = parseInt(localStorage.getItem('total_captures') || '0')
     setGems(localGems)
     setTrophies(localTrophies)
     setOwnedThemes(localThemes)
-    // Migrate old default emojis to new defaults
+    // Migrate old default emojis
     const OLD_DEFAULTS = ['thumb','heart','smile','fire']
     const isOldDefault = localEmojis.length === 4 && OLD_DEFAULTS.every(id => localEmojis.includes(id))
-    setOwnedEmojis(isOldDefault ? ['shush','wait','cry','lol','shake'] : localEmojis)
+    const safeOwned = isOldDefault ? DEFAULT_EMOJIS : localEmojis
+    setOwnedEmojis(safeOwned)
+    setSelectedEmojis(localSelected.filter(id => safeOwned.includes(id)))
     setUserWins(localWins)
     setGamesPlayed(localGamesPlayed)
     setTotalCaptures(localTotalCaptures)
@@ -154,7 +162,11 @@ export default function App() {
       if (data.owned_emojis?.length) {
         const OLD_DEFAULTS = ['thumb','heart','smile','fire']
         const isOldDefault = data.owned_emojis.length === 4 && OLD_DEFAULTS.every(id => data.owned_emojis.includes(id))
-        setOwnedEmojis(isOldDefault ? ['shush','wait','cry','lol','shake'] : data.owned_emojis)
+        const safeOwned = isOldDefault ? DEFAULT_EMOJIS : data.owned_emojis
+        setOwnedEmojis(safeOwned)
+        // Restore selected emojis from localStorage (filtered to owned)
+        const localSelected = JSON.parse(localStorage.getItem('selectedEmojis') || 'null') || DEFAULT_EMOJIS
+        setSelectedEmojis(localSelected.filter(id => safeOwned.includes(id)))
       }
       // For wins/games/captures: take the higher of Supabase or localStorage
       // (guards against missing DB columns silently returning null)
@@ -195,7 +207,7 @@ export default function App() {
           wins: 0,
           trophies: 0,
           owned_themes: ['classic', 'night', 'emerald'],
-          owned_emojis: ['shush', 'wait', 'cry', 'lol', 'shake'],
+          owned_emojis: DEFAULT_EMOJIS,
         })
         setUser(u => ({ ...u, name: username }))
       }
@@ -203,13 +215,15 @@ export default function App() {
   }
 
   async function handleSignOut() {
+    setShowSignOutModal(false)
     await sb.auth.signOut()
     setSession(null)
     setUser({ name: 'Игрок' })
     setGems(0)
     setTrophies(0)
     setOwnedThemes(['classic', 'night', 'emerald'])
-    setOwnedEmojis(['shush', 'wait', 'cry', 'lol', 'shake'])
+    setOwnedEmojis(DEFAULT_EMOJIS)
+    setSelectedEmojis(DEFAULT_EMOJIS)
     setUserWins(0)
     setGamesPlayed(0)
     setTotalCaptures(0)
@@ -221,8 +235,25 @@ export default function App() {
     localStorage.removeItem('total_captures')
     localStorage.removeItem('ownedThemes')
     localStorage.removeItem('ownedEmojis')
+    localStorage.removeItem('selectedEmojis')
     localStorage.removeItem('activeMatch')
     setScreen('home')
+  }
+
+  function handleToggleEmoji(eid) {
+    setSelectedEmojis(prev => {
+      let next
+      if (prev.includes(eid)) {
+        next = prev.filter(id => id !== eid)
+      } else if (prev.length >= 7) {
+        // Replace oldest when at cap
+        next = [...prev.slice(1), eid]
+      } else {
+        next = [...prev, eid]
+      }
+      localStorage.setItem('selectedEmojis', JSON.stringify(next))
+      return next
+    })
   }
 
   function navigate(s, p={}) {
@@ -237,10 +268,13 @@ export default function App() {
   }
 
   async function handleGameEnd(result) {
+    const isDraw = result.winner === 'DRAW'
     let iWon = false
-    if (result.mode === 'ai') iWon = result.winner === 'W'
-    else if (result.mode === 'local') iWon = true
-    else iWon = (result.myColor === 'w') === (result.winner === 'W')
+    if (!isDraw) {
+      if (result.mode === 'ai') iWon = result.winner === 'W'
+      else if (result.mode === 'local') iWon = true
+      else iWon = (result.myColor === 'w') === (result.winner === 'W')
+    }
 
     const myCaps = result.history
       ? result.history.filter(m => m.white).reduce((s, m) => s + (m.caps?.length || 0), 0)
@@ -251,12 +285,14 @@ export default function App() {
     const newGems = iWon ? gems + 50 : gems
     const gemsEarned = iWon ? 50 : 0
 
-    // Trophy logic
+    // Trophy logic (no change for draws)
     let trophiesEarned = 0
-    if (result.mode === 'ai' && iWon) {
-      trophiesEarned = result.level === 'easy' ? 5 : result.level === 'medium' ? 10 : 20
-    } else if (result.mode === 'friend') {
-      trophiesEarned = iWon ? 25 : -5
+    if (!isDraw) {
+      if (result.mode === 'ai' && iWon) {
+        trophiesEarned = result.level === 'easy' ? 5 : result.level === 'medium' ? 10 : 20
+      } else if (result.mode === 'friend') {
+        trophiesEarned = iWon ? 25 : -5
+      }
     }
     const newTrophies = Math.max(0, trophies + trophiesEarned)
 
@@ -329,13 +365,24 @@ export default function App() {
   return (
     <>
       {showAuth && <AuthModal onClose={() => setShowAuth(false)}/>}
+      {showSignOutModal && (
+        <ConfirmModal
+          title="Выйти из аккаунта?"
+          message="Вы уверены, что хотите выйти?"
+          confirmLabel="Да, выйти"
+          cancelLabel="Отмена"
+          danger
+          onConfirm={handleSignOut}
+          onCancel={() => setShowSignOutModal(false)}
+        />
+      )}
       <NavBar
         screen={screen}
         navigate={navigate}
         session={session}
         user={user}
         gems={gems}
-        onSignOut={handleSignOut}
+        onSignOut={() => setShowSignOutModal(true)}
         onShowAuth={() => setShowAuth(true)}
       />
       <main style={{flex:1}}>
@@ -359,11 +406,14 @@ export default function App() {
             gems={gems}
             trophies={trophies}
             ownedThemes={ownedThemes}
+            ownedEmojis={ownedEmojis}
+            selectedEmojis={selectedEmojis}
+            onToggleEmoji={handleToggleEmoji}
             activeThemeId={activeThemeId}
             userWins={userWins}
             gamesPlayed={gamesPlayed}
             totalCaptures={totalCaptures}
-            onSignOut={handleSignOut}
+            onSignOut={() => setShowSignOutModal(true)}
             onRename={name => setUser(u => ({ ...u, name }))}
           />
         )}
@@ -392,7 +442,7 @@ export default function App() {
             roomCode={screenParams.roomCode}
             myColor={screenParams.myColor||'w'}
             oppName={screenParams.oppName}
-            ownedEmojis={ownedEmojis}
+            selectedEmojis={selectedEmojis.length > 0 ? selectedEmojis : DEFAULT_EMOJIS}
             onGameEnd={handleGameEnd}
             navigate={navigate}
           />

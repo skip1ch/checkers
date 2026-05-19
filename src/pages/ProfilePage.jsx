@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Chart from 'chart.js/auto'
-import { THEMES } from '../lib/themes'
+import { THEMES, EMOJIS } from '../lib/themes'
 import { sb } from '../lib/supabase'
 
 function GemIcon({ size = 16 }) {
@@ -64,7 +64,7 @@ function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename }) {
+export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename }) {
   const radarRef = useRef(null)
   const donutRef = useRef(null)
   const radarChart = useRef(null)
@@ -313,10 +313,42 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
         </div>
       </div>
 
+      {/* ── Emoji Panel Selection ── */}
+      {ownedEmojis.length > 0 && (
+        <div className="profile-themes" style={{marginTop:0}}>
+          <div className="profile-themes-title">
+            Эмодзи-панель
+            <span style={{fontWeight:400,color:'var(--text3)',fontSize:'.8rem',marginLeft:8}}>
+              {selectedEmojis.length}/7 выбрано
+            </span>
+          </div>
+          <p style={{fontSize:'.78rem',color:'var(--text3)',marginBottom:12,marginTop:-4}}>
+            Выбери до 7 эмодзи для использования в игре с другом
+          </p>
+          <div className="emoji-select-grid">
+            {EMOJIS.filter(e => ownedEmojis.includes(e.id)).map(e => {
+              const isSelected = selectedEmojis.includes(e.id)
+              return (
+                <button
+                  key={e.id}
+                  className={`emoji-select-chip${isSelected ? ' selected' : ''}`}
+                  onClick={() => onToggleEmoji?.(e.id)}
+                  title={e.name}
+                >
+                  <span className="emoji-select-char">{e.char}</span>
+                  <span className="emoji-select-name">{e.name}</span>
+                  {isSelected && <span className="emoji-select-check">✓</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Match History ── */}
       {(() => {
         const matchHistory = JSON.parse(localStorage.getItem('match_history') || '[]').slice(0, 10)
-        const modeIcon = (m) => m === 'ai' ? '🤖' : m === 'friend' ? '🤝' : '👥'
+        const modeLabel = (m) => m === 'ai' ? 'ИИ' : m === 'friend' ? 'Онлайн' : 'Местная'
         const shortDate = (iso) => {
           const d = new Date(iso)
           return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
@@ -329,10 +361,10 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
             ) : (
               matchHistory.map(h => (
                 <div key={h.id} className="match-row">
-                  <span style={{fontSize:'1.1rem'}}>{modeIcon(h.mode)}</span>
+                  <span className="match-mode-tag">{modeLabel(h.mode)}</span>
                   <span style={{flex:1,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{h.opponent}</span>
                   <span className={h.won ? 'match-result-win' : 'match-result-loss'}>
-                    {h.won ? '✅ Победа' : '❌ Поражение'}
+                    {h.won ? 'Победа' : 'Поражение'}
                   </span>
                   {h.gemsEarned > 0 && (
                     <span style={{color:'#0277bd',fontWeight:700,fontSize:'.8rem'}}>+{h.gemsEarned} 💎</span>

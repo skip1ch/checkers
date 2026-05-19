@@ -80,6 +80,8 @@ export const EMOJIS = [
   { id: 'cry',    char: '😭', name: 'Плачу',      price: 0,   req: null },
   { id: 'lol',    char: '🤣', name: 'Смеюсь',     price: 0,   req: null },
   { id: 'shake',  char: '🤝', name: 'Рукопожатие',price: 0,   req: null },
+  { id: 'clap',   char: '👏', name: 'Аплодисменты',price: 0,  req: null },
+  { id: 'think',  char: '🤔', name: 'Думаю',       price: 0,   req: null },
   // Premium paid
   { id: 'devil',  char: '😈', name: 'Дьявол',     price: 100, req: null },
   { id: 'skull',  char: '💀', name: 'Череп',      price: 100, req: null },

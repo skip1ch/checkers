@@ -478,7 +478,32 @@ a{color:inherit;text-decoration:none;}
 .match-history-title{font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
 .match-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:.85rem;}
 .match-row:last-child{border-bottom:none;}
-.match-result-win{color:var(--green);font-weight:700;}
-.match-result-loss{color:var(--red);font-weight:700;}
+.match-result-win{color:var(--green);font-weight:700;font-size:.82rem;}
+.match-result-loss{color:var(--red);font-weight:700;font-size:.82rem;}
+.match-mode-tag{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);background:var(--muted);border-radius:4px;padding:2px 6px;flex-shrink:0;}
 
-@media(max-width:768px){.profile-hero{flex-direction:column;text-align:center;}.profile-stats{grid-template-columns:repeat(2,1fr);}.profile-charts{grid-template-columns:1fr;}.profile-actions{flex-direction:column;}.rejoin-banner{margin:8px 12px 0;}}
+/* Emoji panel selection in Profile */
+.emoji-select-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.emoji-select-chip{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 14px;background:var(--surface);border:1.5px solid var(--border2);border-radius:var(--r);cursor:pointer;position:relative;transition:border-color .15s,background .15s;min-width:64px;}
+.emoji-select-chip:hover{background:var(--surface2);}
+.emoji-select-chip.selected{border-color:var(--primary);background:rgba(107,68,35,0.07);}
+.emoji-select-char{font-size:1.6rem;line-height:1;}
+.emoji-select-name{font-size:.65rem;color:var(--text3);text-align:center;}
+.emoji-select-check{position:absolute;top:4px;right:6px;font-size:.65rem;color:var(--primary);font-weight:700;}
+
+/* Game overlay trophy delta */
+.go-trophy-delta{font-size:1.1rem;font-weight:700;padding:6px 18px;border-radius:99px;}
+.go-trophy-delta.positive{color:#8a6a00;background:rgba(201,162,39,0.14);border:1.5px solid rgba(201,162,39,0.3);}
+.go-trophy-delta.negative{color:var(--red);background:rgba(192,57,43,0.08);border:1.5px solid rgba(192,57,43,0.2);}
+.go-trophy-delta.neutral{color:var(--text3);background:var(--muted);border:1.5px solid var(--border2);}
+
+/* Custom confirm modal */
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(43,24,16,0.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fade-in .18s;}
+.modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r2);padding:32px 28px;width:min(360px,100%);display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 64px rgba(43,24,16,0.28);}
+.modal-title{font-family:'Playfair Display',Georgia,serif;font-size:1.35rem;font-weight:700;color:var(--text);}
+.modal-message{font-size:.9rem;color:var(--text2);line-height:1.5;}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}
+.btn-danger{background:#c0392b;color:#fff;border:none;border-radius:var(--r);padding:9px 20px;font-weight:700;font-size:.88rem;cursor:pointer;transition:background .15s;}
+.btn-danger:hover{background:#a93226;}
+
+@media(max-width:768px){.profile-hero{flex-direction:column;text-align:center;}.profile-stats{grid-template-columns:repeat(2,1fr);}.profile-charts{grid-template-columns:1fr;}.profile-actions{flex-direction:column;}.rejoin-banner{margin:8px 12px 0;}.modal-btns{flex-direction:column;}.modal-btns .btn-ghost,.modal-btns .btn-danger,.modal-btns .btn-primary{width:100%;text-align:center;}}

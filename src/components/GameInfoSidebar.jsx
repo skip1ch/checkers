@@ -20,7 +20,9 @@ export default function GameInfoSidebar({ board, wt, gameResult, history, thinki
 
       <div className="gi-card">
         <p className="gi-label">Ход</p>
-        {gameResult ? (
+        {gameResult === 'DRAW' ? (
+          <p className="gi-value-lg">Ничья ⏱</p>
+        ) : gameResult ? (
           <p className="gi-value-lg">{gameResult==='W'?'Победили белые':'Победили чёрные'}</p>
         ) : (
           <div className="gi-turn-row">

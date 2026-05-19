@@ -35,13 +35,9 @@ export default function NavBar({ screen, navigate, session, user, gems, onSignOu
           </div>
           {session ? (
             <>
-              <button
-                className="nav-user"
-                onClick={() => navigate('profile')}
-                style={{background:'none',border:'none',cursor:'pointer',padding:0}}
-                title="Профиль"
-              >
-                <span>{user?.name || 'Игрок'}</span>
+              <button className="nav-user-btn" onClick={() => navigate('profile')} title="Профиль">
+                <span className="nav-user-avatar">{(user?.name || 'И')[0].toUpperCase()}</span>
+                <span className="nav-user-name">{user?.name || 'Игрок'}</span>
               </button>
               <button className="btn-ghost btn-sm" onClick={onSignOut}>Выйти</button>
               <button className="btn-primary btn-sm" onClick={() => navigate('play')}>Начать партию</button>

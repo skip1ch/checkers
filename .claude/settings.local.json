@@ -18,7 +18,15 @@
       "Bash(npm run *)",
       "Bash(curl -s http://localhost:5173)",
       "Bash(supabase --version)",
-      "Bash(brew --version)"
+      "Bash(brew --version)",
+      "Bash(git rm *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api *)",
+      "Bash(python3 -c \"import json,sys; files=json.load\\(sys.stdin\\); [print\\(f['name'], f['download_url']\\) for f in files]\")",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:www.netlify.com)"
     ]
   }
 }

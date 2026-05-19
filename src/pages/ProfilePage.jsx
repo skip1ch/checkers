@@ -64,7 +64,7 @@ function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename }) {
+export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename, onViewReplay }) {
   const radarRef = useRef(null)
   const donutRef = useRef(null)
   const radarChart = useRef(null)
@@ -361,7 +361,6 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
             ) : (
               matchHistory.map(h => (
                 <div key={h.id} className="match-row">
-                  <span className="match-mode-tag">{modeLabel(h.mode)}</span>
                   <span style={{flex:1,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{h.opponent}</span>
                   <span className={h.won ? 'match-result-win' : 'match-result-loss'}>
                     {h.won ? 'Победа' : 'Поражение'}
@@ -376,6 +375,9 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
                     <span style={{color:'var(--red)',fontWeight:700,fontSize:'.8rem'}}>{h.trophiesEarned} 🏆</span>
                   )}
                   <span style={{color:'var(--text3)',fontSize:'.75rem',flexShrink:0}}>{shortDate(h.date)}</span>
+                  {h.history?.length > 0 && (
+                    <button className="match-replay-btn" onClick={() => onViewReplay?.(h)}>Разбор</button>
+                  )}
                 </div>
               ))
             )}

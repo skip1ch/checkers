@@ -63,7 +63,7 @@ function ThemeCard({ theme, owned, active, gems, onBuy, onActivate }) {
             onClick={e => { e.stopPropagation(); onBuy() }}
             disabled={!canAfford}
           >
-            {canAfford ? 'Купить' : 'Мало 💎'}
+            {canAfford ? (theme.price === 0 ? 'Получить' : 'Купить') : 'Мало 💎'}
           </button>
         )}
       </div>
@@ -103,7 +103,7 @@ function EmojiCard({ emoji, owned, gems, userWins, onBuy }) {
           onClick={onBuy}
           disabled={!canAfford}
         >
-          {canAfford ? 'Купить' : 'Мало 💎'}
+          {canAfford ? (emoji.price === 0 ? 'Получить' : 'Купить') : 'Мало 💎'}
         </button>
       )}
     </div>

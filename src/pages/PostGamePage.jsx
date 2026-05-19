@@ -6,10 +6,8 @@ import CaptureChart from '../components/CaptureChart'
 
 export default function PostGamePage({ result, navigate }) {
   const { winner, history=[], mode='ai', level='medium', timer=0, gemsEarned=0, myColor='w' } = result||{}
-  // In friend mode each player has their own color — check if THIS player won
-  const won = mode === 'local'
-    ? winner === 'W'
-    : (winner === 'W') === (myColor === 'w')
+  const isDraw = winner === 'DRAW'
+  const won = isDraw ? false : (mode === 'local' ? winner === 'W' : (winner === 'W') === (myColor === 'w'))
   const iAm = mode !== 'friend' || myColor === 'w'
   const pCaps = history.filter(m=> iAm ? m.white : !m.white).reduce((s,m)=>s+m.caps.length,0)
   const aCaps = history.filter(m=> iAm ? !m.white : m.white).reduce((s,m)=>s+m.caps.length,0)
@@ -74,7 +72,8 @@ export default function PostGamePage({ result, navigate }) {
     <div className="post-page">
       <div className="post-hero">
         {won && <span className="post-icon">🏆</span>}
-        <h1 className="post-title">{won?'Победа!':'Поражение'}</h1>
+        {isDraw && <span className="post-icon">🤝</span>}
+        <h1 className="post-title">{isDraw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}</h1>
         <p className="post-sub">{moves} ходов · {fmt(timer)}</p>
         {gemsEarned > 0 && (
           <div className="gems-earned">

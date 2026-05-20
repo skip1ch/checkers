@@ -447,8 +447,8 @@ export default function GamePage({
             {isDraw && <div className="go-trophy-delta neutral">Без изменений 🏆</div>}
             <div className="go-btns">
               <button className="btn-primary" onClick={() => fireEnd(true)}>Разбор партии →</button>
-              <button className="btn-border btn-full" onClick={() => { fireEnd(false); resetGame() }}>Ещё раз</button>
               <button className="btn-border btn-full" onClick={() => { fireEnd(false); navigate('play') }}>Сменить режим</button>
+              <button className="btn-ghost btn-full" onClick={() => { fireEnd(false); navigate('home') }}>Закрыть</button>
             </div>
           </div>
         </div>

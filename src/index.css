@@ -154,13 +154,13 @@ a{color:inherit;text-decoration:none;}
 .game-header-left p{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-weight:600;}
 .game-header-left h1{font-size:clamp(1.6rem,3vw,2rem);font-weight:700;}
 .game-header-btns{display:flex;gap:8px;}
-/* Per-player timers */
+/* Per-player timers (local mode: side-by-side) */
+@keyframes pulse-border{0%,100%{border-color:rgba(192,57,43,0.6);}50%{border-color:rgba(192,57,43,1);}}
 .player-timers{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;}
 .ptimer{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);font-size:.8rem;transition:border-color .2s,background .2s;flex:1;}
 .ptimer-active{border-color:var(--primary);background:rgba(107,68,35,0.07);}
 .ptimer-warn{border-color:rgba(201,162,39,0.7);background:rgba(201,162,39,0.07);}
 .ptimer-urgent{border-color:rgba(192,57,43,0.7);background:rgba(192,57,43,0.07);animation:pulse-border 1s infinite;}
-@keyframes pulse-border{0%,100%{border-color:rgba(192,57,43,0.6);}50%{border-color:rgba(192,57,43,1);}}
 .ptimer-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .ptimer-dot-w{background:linear-gradient(180deg,#fff7ea,#d9c2a0);border:1px solid rgba(0,0,0,0.2);}
 .ptimer-dot-b{background:linear-gradient(180deg,#3a2516,#0e0805);border:1px solid rgba(255,255,255,0.1);}
@@ -168,9 +168,21 @@ a{color:inherit;text-decoration:none;}
 .ptimer-val{font-family:'Playfair Display',serif;font-weight:700;font-size:.9rem;color:var(--text);}
 .ptimer-warn .ptimer-val{color:#8a6a00;}
 .ptimer-urgent .ptimer-val{color:var(--red);}
+/* Per-player timers (ai/friend mode: opp above, mine below) */
+.ptimer-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--r);border:1.5px solid var(--border2);background:var(--surface);transition:border-color .2s,background .2s;margin-bottom:6px;max-width:560px;width:100%;margin-left:auto;margin-right:auto;box-sizing:border-box;}
+.ptimer-bar-mine{margin-top:6px;}
+.ptimer-bar.active{border-color:var(--primary);background:rgba(107,68,35,0.06);}
+.ptimer-bar.warn{border-color:rgba(201,162,39,0.6);background:rgba(201,162,39,0.06);}
+.ptimer-bar.urgent{border-color:rgba(192,57,43,0.7);background:rgba(192,57,43,0.06);animation:pulse-border 1s infinite;}
+.ptimer-name{flex:1;font-size:.8rem;font-weight:600;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ptimer-time{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;color:var(--text);min-width:46px;text-align:right;}
+.ptimer-bar.warn .ptimer-time{color:#8a6a00;}
+.ptimer-bar.urgent .ptimer-time{color:var(--red);}
+.ptimer-avatar{width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border2);}
 .btn-border{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:8px 16px;font-size:.85rem;font-weight:500;color:var(--text2);cursor:pointer;transition:background .15s;}
 .btn-border:hover{background:var(--surface2);}
 .game-body{display:grid;grid-template-columns:1fr 320px;gap:32px;align-items:start;}
+.board-col{display:flex;flex-direction:column;min-width:0;}
 
 .board-area{display:flex;justify-content:center;}
 .board-wrap{position:relative;width:100%;max-width:560px;aspect-ratio:1/1;}
@@ -458,9 +470,9 @@ a{color:inherit;text-decoration:none;}
 .emoji-float-mine{bottom:22%;animation:emoji-rise 2.4s cubic-bezier(0.22,1,0.36,1) forwards;}
 .emoji-float-opp{top:18%;animation:emoji-fall 2.4s cubic-bezier(0.22,1,0.36,1) forwards;}
 .emoji-float-char{font-size:5rem;filter:drop-shadow(0 6px 20px rgba(0,0,0,0.35));display:block;}
-.emoji-panel{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 0 4px;}
-.emoji-btn{width:48px;height:48px;border-radius:14px;border:1.5px solid var(--border2);background:var(--surface);font-size:1.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s cubic-bezier(0.34,1.56,0.64,1),box-shadow .15s;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
-.emoji-btn:hover{transform:scale(1.25) rotate(-5deg);box-shadow:0 6px 18px rgba(0,0,0,0.15);}
+.emoji-panel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:8px 0 4px;max-width:560px;width:100%;margin:0 auto;}
+.emoji-btn{width:100%;height:50px;border-radius:12px;border:1.5px solid var(--border2);background:var(--surface);font-size:1.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s cubic-bezier(0.34,1.56,0.64,1),box-shadow .15s;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.emoji-btn:hover{transform:scale(1.22) rotate(-5deg);box-shadow:0 6px 18px rgba(0,0,0,0.15);}
 .emoji-btn:active{transform:scale(0.88);box-shadow:none;}
 
 /* Post-game gems earned */
@@ -472,7 +484,10 @@ a{color:inherit;text-decoration:none;}
 /* ── Profile page ── */
 .profile-page{max-width:960px;margin:0 auto;padding:48px 20px 80px;}
 .profile-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:32px;display:flex;align-items:center;gap:28px;margin-bottom:24px;box-shadow:0 2px 12px rgba(107,68,35,0.06);}
-.profile-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#6b4423,#c9a227);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;box-shadow:0 4px 20px rgba(107,68,35,0.3);flex-shrink:0;}
+.profile-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#6b4423,#c9a227);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;box-shadow:0 4px 20px rgba(107,68,35,0.3);flex-shrink:0;overflow:hidden;position:relative;}
+.profile-avatar-editable{cursor:pointer;}
+.profile-avatar-editable:hover .avatar-edit-badge{opacity:1;}
+.avatar-edit-badge{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:.65rem;text-align:center;padding:3px 0;opacity:0;transition:opacity .18s;}
 .profile-info{flex:1;min-width:0;}
 .profile-name{font-size:1.6rem;font-weight:700;margin-bottom:2px;}
 .profile-email{font-size:.82rem;color:var(--text3);margin-bottom:6px;}

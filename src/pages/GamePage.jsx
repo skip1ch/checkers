@@ -15,7 +15,7 @@ function fmtTime(s) {
 }
 
 export default function GamePage({
-  mode, level, roomCode, myColor, oppName,
+  mode, level, roomCode, myColor, oppName, oppAvatar,
   selectedEmojis = ['shush', 'wait', 'cry', 'lol', 'shake'],
   initialBoard, initialWt, initialHistory, initialWhiteTime, initialBlackTime,
   onMove, onGameEnd, navigate,
@@ -264,6 +264,20 @@ export default function GamePage({
 
   const panelEmojis = EMOJIS.filter(e => selectedEmojis.includes(e.id)).slice(0, 5)
 
+  const isNonLocal = mode !== 'local'
+  const amWhite = mode === 'ai' ? true : myColor === 'w'
+  const myTime = isNonLocal ? (amWhite ? whiteTime : blackTime) : null
+  const oppTime = isNonLocal ? (amWhite ? blackTime : whiteTime) : null
+  const myIsActive = isNonLocal && !gameResult && (amWhite ? wt : !wt)
+  const oppIsActive = isNonLocal && !gameResult && (amWhite ? !wt : wt)
+  const myUrgent = myTime != null && myTime < 30
+  const myWarn = myTime != null && myTime >= 30 && myTime < 60
+  const oppUrgent = oppTime != null && oppTime < 30
+  const oppWarn = oppTime != null && oppTime >= 30 && oppTime < 60
+  const myDot = amWhite ? 'ptimer-dot-w' : 'ptimer-dot-b'
+  const oppDot = amWhite ? 'ptimer-dot-b' : 'ptimer-dot-w'
+  const oppLabel = mode === 'ai' ? `ИИ · ${LEVEL_LABEL[level] || 'Средний'}` : (oppName || 'Соперник')
+
   const isDraw = gameResult === 'DRAW'
   let iWon = null
   if (!isDraw && gameResult) {
@@ -316,25 +330,45 @@ export default function GamePage({
       </div>
 
       <div className="game-body">
-        <div>
-          {/* Per-player timers — above board */}
-          <div className="player-timers">
-            <div className={`ptimer${!wt && !gameResult ? ' ptimer-active' : ''}${blackTime < 30 ? ' ptimer-urgent' : blackTime < 60 ? ' ptimer-warn' : ''}`}>
-              <div className="ptimer-dot ptimer-dot-b" />
-              <span className="ptimer-label">Чёрные</span>
-              <span className="ptimer-val">{fmtTime(blackTime)}</span>
+        <div className="board-col">
+          {/* Opponent timer — above board */}
+          {isNonLocal ? (
+            <div className={`ptimer-bar${oppIsActive ? ' active' : ''}${oppUrgent ? ' urgent' : oppWarn ? ' warn' : ''}`}>
+              {oppAvatar
+                ? <img src={oppAvatar} className="ptimer-avatar" alt=""/>
+                : <div className={`ptimer-dot ${oppDot}`}/>
+              }
+              <span className="ptimer-name">{oppLabel}</span>
+              <span className="ptimer-time">{fmtTime(oppTime)}</span>
             </div>
-            <div className={`ptimer${wt && !gameResult ? ' ptimer-active' : ''}${whiteTime < 30 ? ' ptimer-urgent' : whiteTime < 60 ? ' ptimer-warn' : ''}`}>
-              <div className="ptimer-dot ptimer-dot-w" />
-              <span className="ptimer-label">Белые</span>
-              <span className="ptimer-val">{fmtTime(whiteTime)}</span>
+          ) : (
+            <div className="player-timers">
+              <div className={`ptimer${!wt && !gameResult ? ' ptimer-active' : ''}${blackTime < 30 ? ' ptimer-urgent' : blackTime < 60 ? ' ptimer-warn' : ''}`}>
+                <div className="ptimer-dot ptimer-dot-b"/>
+                <span className="ptimer-label">Чёрные</span>
+                <span className="ptimer-val">{fmtTime(blackTime)}</span>
+              </div>
+              <div className={`ptimer${wt && !gameResult ? ' ptimer-active' : ''}${whiteTime < 30 ? ' ptimer-urgent' : whiteTime < 60 ? ' ptimer-warn' : ''}`}>
+                <div className="ptimer-dot ptimer-dot-w"/>
+                <span className="ptimer-label">Белые</span>
+                <span className="ptimer-val">{fmtTime(whiteTime)}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <BoardView
             board={board} selected={sel} legalDests={legalDests}
             lastMove={lastMove} perspective={perspective} onSquareClick={handleClick}
           />
+
+          {/* My timer — below board */}
+          {isNonLocal && (
+            <div className={`ptimer-bar ptimer-bar-mine${myIsActive ? ' active' : ''}${myUrgent ? ' urgent' : myWarn ? ' warn' : ''}`}>
+              <div className={`ptimer-dot ${myDot}`}/>
+              <span className="ptimer-name">Вы</span>
+              <span className="ptimer-time">{fmtTime(myTime)}</span>
+            </div>
+          )}
 
           {/* Emoji panel */}
           <div className="emoji-panel">

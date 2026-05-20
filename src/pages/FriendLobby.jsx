@@ -23,8 +23,8 @@ export default function FriendLobby({ navigate, user, screenParams }) {
     ch.on('broadcast', {event:'guest-join'}, ({payload}) => {
       setStatus('Соперник подключился!')
       setTimeout(() => {
-        ch.send({type:'broadcast', event:'start', payload:{hostName:user?.name||'Хозяин'}})
-        navigate('game', { mode:'friend', myColor:'w', roomCode:c, oppName:payload.name })
+        ch.send({type:'broadcast', event:'start', payload:{hostName:user?.name||'Хозяин', hostAvatar:user?.avatar||null}})
+        navigate('game', { mode:'friend', myColor:'w', roomCode:c, oppName:payload.name, oppAvatar:payload.avatar||null })
       }, 800)
     })
     ch.subscribe()
@@ -37,11 +37,11 @@ export default function FriendLobby({ navigate, user, screenParams }) {
     const ch = sb.channel(`room-${roomCode}`, {config:{broadcast:{self:false}}})
     chRef.current = ch
     ch.on('broadcast', {event:'start'}, ({payload}) => {
-      setTimeout(() => navigate('game', { mode:'friend', myColor:'b', roomCode, oppName:payload.hostName }), 400)
+      setTimeout(() => navigate('game', { mode:'friend', myColor:'b', roomCode, oppName:payload.hostName, oppAvatar:payload.hostAvatar||null }), 400)
     })
     ch.subscribe(s => {
       if (s==='SUBSCRIBED') {
-        ch.send({type:'broadcast', event:'guest-join', payload:{name:user?.name||'Гость'}})
+        ch.send({type:'broadcast', event:'guest-join', payload:{name:user?.name||'Гость', avatar:user?.avatar||null}})
         setStatus('Ожидание подтверждения…')
       }
     })

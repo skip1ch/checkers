@@ -64,17 +64,19 @@ function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename, onViewReplay }) {
+export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename, onUpdateAvatar, onViewReplay }) {
   const radarRef = useRef(null)
   const donutRef = useRef(null)
   const radarChart = useRef(null)
   const donutChart = useRef(null)
   const inputRef = useRef(null)
+  const avatarInputRef = useRef(null)
 
   const [editing, setEditing] = useState(false)
   const [editName, setEditName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
+  const [avatarSaving, setAvatarSaving] = useState(false)
 
   const wins = userWins || 0
   const played = gamesPlayed || 0
@@ -114,6 +116,37 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
       setSaveMsg({ text: '✓ Никнейм обновлён', err: false })
       setTimeout(() => setSaveMsg(null), 2500)
     }
+  }
+
+  function compressAvatar(file) {
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = ev => {
+        const img = new Image()
+        img.onload = () => {
+          const size = 96
+          const canvas = document.createElement('canvas')
+          canvas.width = size; canvas.height = size
+          const ctx = canvas.getContext('2d')
+          const s = Math.min(img.width, img.height)
+          ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size)
+          resolve(canvas.toDataURL('image/jpeg', 0.8))
+        }
+        img.src = ev.target.result
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0]
+    if (!file || !session) return
+    setAvatarSaving(true)
+    const url = await compressAvatar(file)
+    await sb.from('profiles').update({ avatar: url }).eq('id', session.user.id)
+    onUpdateAvatar?.(url)
+    setAvatarSaving(false)
+    e.target.value = ''
   }
 
   useEffect(() => {
@@ -209,7 +242,18 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
 
       {/* ── Hero ── */}
       <div className="profile-hero">
-        <div className="profile-avatar">{getInitials(user?.name)}</div>
+        <div
+          className={`profile-avatar${session ? ' profile-avatar-editable' : ''}`}
+          onClick={() => session && avatarInputRef.current?.click()}
+          title={session ? 'Изменить аватарку' : ''}
+        >
+          {user?.avatar
+            ? <img src={user.avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/>
+            : getInitials(user?.name)
+          }
+          {session && <div className="avatar-edit-badge">{avatarSaving ? '…' : '✎'}</div>}
+          <input ref={avatarInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange}/>
+        </div>
         <div className="profile-info" style={{flex:1,minWidth:0}}>
 
           {/* Name + edit */}
@@ -365,9 +409,6 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
                   <span className={h.won ? 'match-result-win' : 'match-result-loss'}>
                     {h.won ? 'Победа' : 'Поражение'}
                   </span>
-                  {h.gemsEarned > 0 && (
-                    <span style={{color:'#0277bd',fontWeight:700,fontSize:'.8rem'}}>+{h.gemsEarned} 💎</span>
-                  )}
                   {h.trophiesEarned > 0 && (
                     <span style={{color:'#8a6a00',fontWeight:700,fontSize:'.8rem'}}>+{h.trophiesEarned} 🏆</span>
                   )}

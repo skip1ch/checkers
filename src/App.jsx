@@ -63,6 +63,8 @@ export default function App() {
     const localWins = parseInt(localStorage.getItem('wins') || '0')
     const localGamesPlayed = parseInt(localStorage.getItem('games_played') || '0')
     const localTotalCaptures = parseInt(localStorage.getItem('total_captures') || '0')
+    const localAvatar = localStorage.getItem('user_avatar')
+    if (localAvatar) setUser(u => ({ ...u, avatar: localAvatar }))
     setGems(localGems); setTrophies(localTrophies); setOwnedThemes(localThemes)
     const OLD_DEFAULTS = ['thumb', 'heart', 'smile', 'fire']
     const isOldDefault = localEmojis.length === 4 && OLD_DEFAULTS.every(id => localEmojis.includes(id))
@@ -244,8 +246,10 @@ export default function App() {
     const gemsEarned = iWon ? 50 : 0
     let trophiesEarned = 0
     if (!isDraw) {
-      if (result.mode === 'ai' && iWon) trophiesEarned = result.level === 'easy' ? 5 : result.level === 'medium' ? 10 : 20
-      else if (result.mode === 'friend') trophiesEarned = iWon ? 25 : -5
+      if (result.mode === 'ai') {
+        if (iWon) trophiesEarned = result.level === 'easy' ? 5 : result.level === 'medium' ? 10 : 20
+        else trophiesEarned = result.level === 'easy' ? -2 : result.level === 'medium' ? -5 : -10
+      } else if (result.mode === 'friend') trophiesEarned = iWon ? 25 : -10
     }
     const newTrophies = Math.max(0, trophies + trophiesEarned)
 
@@ -399,6 +403,7 @@ export default function App() {
             roomCode={screenParams.roomCode}
             myColor={screenParams.myColor || 'w'}
             oppName={screenParams.oppName}
+            oppAvatar={screenParams.oppAvatar}
             selectedEmojis={selectedEmojis.length > 0 ? selectedEmojis : DEFAULT_EMOJIS}
             initialBoard={screenParams.initialBoard}
             initialWt={screenParams.initialWt}
@@ -421,6 +426,7 @@ export default function App() {
             userWins={userWins} gamesPlayed={gamesPlayed} totalCaptures={totalCaptures}
             onSignOut={() => setShowSignOutModal(true)}
             onRename={name => setUser(u => ({ ...u, name }))}
+            onUpdateAvatar={url => { setUser(u => ({ ...u, avatar: url })); localStorage.setItem('user_avatar', url) }}
             onViewReplay={handleViewReplay}
           />
         )}

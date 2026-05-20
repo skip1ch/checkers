@@ -40,12 +40,10 @@ export default function NavBar({ screen, navigate, session, user, gems, onSignOu
               <button className="nav-user-btn" onClick={() => navigate('profile')} title="Профиль">
                 <span
                   className="nav-user-avatar"
-                  style={user?.avatar
-                    ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center',background:'none'}
-                    : {background: nameToColor(user?.name)}
-                  }
+                  style={{background: nameToColor(user?.name), position:'relative', overflow:'hidden'}}
                 >
-                  {!user?.avatar && <span style={{color:'#fff',fontWeight:700,fontSize:'.85rem',lineHeight:1}}>{nameToInitial(user?.name)}</span>}
+                  <span style={{color:'#fff',fontWeight:700,fontSize:'.85rem',lineHeight:1,position:'relative',zIndex:1}}>{nameToInitial(user?.name)}</span>
+                  {user?.avatar && <span style={{position:'absolute',inset:0,backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center',zIndex:2}}/>}
                 </span>
                 <span className="nav-user-name">{user?.name || 'Игрок'}</span>
               </button>

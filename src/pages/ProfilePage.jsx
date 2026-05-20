@@ -247,12 +247,14 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
           className={`profile-avatar${session ? ' profile-avatar-editable' : ''}`}
           onClick={() => session && avatarInputRef.current?.click()}
           title={session ? 'Изменить аватарку' : ''}
-          style={user?.avatar
-            ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center',background:'none'}
-            : {background: nameToColor(user?.name)}
-          }
+          style={{background: nameToColor(user?.name)}}
         >
-          {!user?.avatar && <span style={{color:'#fff',fontFamily:"'Playfair Display',serif",fontSize:'2rem',fontWeight:700,lineHeight:1}}>{nameToInitial(user?.name)}</span>}
+          <span style={{color:'#fff',fontFamily:"'Playfair Display',serif",fontSize:'2.2rem',fontWeight:700,lineHeight:1,position:'relative',zIndex:1}}>
+            {nameToInitial(user?.name)}
+          </span>
+          {user?.avatar && (
+            <div style={{position:'absolute',inset:0,backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center'}}/>
+          )}
           {session && <div className="avatar-edit-badge">{avatarSaving ? '…' : '✎'}</div>}
           <input ref={avatarInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange}/>
         </div>
@@ -294,11 +296,6 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
           {session?.user?.created_at && (
             <div style={{fontSize:'.75rem',color:'var(--text3)',marginBottom:10}}>Участник с {formatDate(session.user.created_at)}</div>
           )}
-
-          {/* Rank badge */}
-          <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${rank.color}18`,border:`1.5px solid ${rank.color}40`,borderRadius:99,padding:'5px 14px',fontSize:'.85rem',fontWeight:700,color:rank.color,marginBottom:6}}>
-            <span>{rank.emoji}</span> {rank.label}
-          </div>
 
           {/* Trophies + gems row */}
           <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',marginTop:4}}>

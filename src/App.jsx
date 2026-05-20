@@ -68,7 +68,7 @@ export default function App() {
     const isOldDefault = localEmojis.length === 4 && OLD_DEFAULTS.every(id => localEmojis.includes(id))
     const safeOwned = isOldDefault ? DEFAULT_EMOJIS : localEmojis
     setOwnedEmojis(safeOwned)
-    setSelectedEmojis(localSelected.filter(id => safeOwned.includes(id)))
+    setSelectedEmojis(localSelected.filter(id => safeOwned.includes(id)).slice(0, 5))
     setUserWins(localWins); setGamesPlayed(localGamesPlayed); setTotalCaptures(localTotalCaptures)
 
     // Load rejoin match from localStorage (persists across browser close)
@@ -144,7 +144,7 @@ export default function App() {
         const safeOwned = isOldDefault ? DEFAULT_EMOJIS : data.owned_emojis
         setOwnedEmojis(safeOwned)
         const localSelected = JSON.parse(localStorage.getItem('selectedEmojis') || 'null') || DEFAULT_EMOJIS
-        setSelectedEmojis(localSelected.filter(id => safeOwned.includes(id)))
+        setSelectedEmojis(localSelected.filter(id => safeOwned.includes(id)).slice(0, 5))
       }
       // Supabase vs localStorage — take higher
       const dbWins = data.wins ?? 0; const dbGames = data.games_played ?? 0; const dbCaptures = data.total_captures ?? 0
@@ -180,6 +180,7 @@ export default function App() {
         const username = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Игрок'
         await sb.from('profiles').upsert({ id: uid, username, gems: 0, wins: 0, trophies: 0, owned_themes: ['classic', 'night', 'emerald'], owned_emojis: DEFAULT_EMOJIS })
         setUser(u => ({ ...u, name: username }))
+        applyTheme('classic'); setActiveThemeId('classic'); localStorage.setItem('theme', 'classic')
       }
     }
   }
@@ -192,9 +193,10 @@ export default function App() {
     setSession(null); setUser({ name: 'Игрок' })
     setGems(0); setTrophies(0)
     setOwnedThemes(['classic', 'night', 'emerald'])
-    setOwnedEmojis(DEFAULT_EMOJIS); setSelectedEmojis(DEFAULT_EMOJIS)
+    setOwnedEmojis(DEFAULT_EMOJIS); setSelectedEmojis(DEFAULT_EMOJIS.slice(0, 5))
     setUserWins(0); setGamesPlayed(0); setTotalCaptures(0); setRejoinMatch(null)
     ;['gems', 'trophies', 'wins', 'games_played', 'total_captures', 'ownedThemes', 'ownedEmojis', 'selectedEmojis', 'activeMatch'].forEach(k => localStorage.removeItem(k))
+    applyTheme('classic'); setActiveThemeId('classic'); localStorage.setItem('theme', 'classic')
     setScreen('home')
   }
 
@@ -319,6 +321,19 @@ export default function App() {
     })
     setScreen('postgame'); window.scrollTo(0, 0)
   }
+
+  // ── Re-check rejoin whenever user leaves the game screen ─────────────────
+  useEffect(() => {
+    if (screen === 'game') return
+    try {
+      const saved = localStorage.getItem('activeMatch')
+      if (saved) {
+        const m = JSON.parse(saved)
+        if (m.ts && Date.now() - m.ts < REJOIN_TTL) setRejoinMatch(m)
+        else { localStorage.removeItem('activeMatch'); setRejoinMatch(null) }
+      } else { setRejoinMatch(null) }
+    } catch { setRejoinMatch(null) }
+  }, [screen])
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (session === undefined) {

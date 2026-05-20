@@ -85,8 +85,14 @@ export default function GamePage({
       localStorage.setItem('activeMatch', JSON.stringify(entry))
       onMove?.(entry)
     } else if (mode === 'ai') {
-      const entry = { mode: 'ai', level: level || 'medium', ts: Date.now() }
-      localStorage.setItem('activeMatch', JSON.stringify(entry))
+      if (!initialBoard) {
+        // Fresh game — write a clean entry
+        localStorage.setItem('activeMatch', JSON.stringify({ mode: 'ai', level: level || 'medium', ts: Date.now() }))
+      } else {
+        // Resuming — just refresh the timestamp, preserve board/timer data
+        const saved = JSON.parse(localStorage.getItem('activeMatch') || '{}')
+        localStorage.setItem('activeMatch', JSON.stringify({ ...saved, ts: Date.now() }))
+      }
     }
     return () => { if (statsFiredRef.current) localStorage.removeItem('activeMatch') }
   }, [])
@@ -141,8 +147,8 @@ export default function GamePage({
       syncActiveMatch(nb, true, newHist)
       const winner = GL.checkWinner(nb, true)
       if (winner) setTimeout(() => { setGameResult(winner); playSound(winner === 'W' ? 'win' : 'lose') }, 300)
-      // AI emoji reaction
-      const emojiChance = becameKing ? 0.8 : mv.caps.length >= 2 ? 0.65 : mv.caps.length === 1 ? 0.28 : 0.07
+      // AI emoji reaction — rare, contextual only
+      const emojiChance = becameKing ? 0.15 : mv.caps.length >= 2 ? 0.10 : mv.caps.length === 1 ? 0.04 : 0.01
       if (Math.random() < emojiChance) {
         let pool = becameKing ? AI_EMOJIS.king : mv.caps.length >= 2 ? AI_EMOJIS.bigCapture : mv.caps.length === 1 ? AI_EMOJIS.capture : AI_EMOJIS.neutral
         const char = pool[Math.floor(Math.random() * pool.length)]

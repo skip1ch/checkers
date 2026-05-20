@@ -378,6 +378,11 @@ export default function App() {
               <button className="btn-primary btn-sm" onClick={() => {
                 const m = rejoinMatch
                 setRejoinMatch(null)
+                // Deduct time elapsed since last save from the active player
+                const elapsed = m.ts ? Math.max(0, Math.floor((Date.now() - m.ts) / 1000)) : 0
+                const isWhiteTurn = m.wt !== false
+                const adjWt = Math.max(0, (m.whiteTime ?? 300) - (isWhiteTurn ? elapsed : 0))
+                const adjBt = Math.max(0, (m.blackTime ?? 300) - (!isWhiteTurn ? elapsed : 0))
                 if (m.mode === 'ai') {
                   navigate('game', {
                     mode: 'ai',
@@ -385,8 +390,8 @@ export default function App() {
                     initialBoard: m.board,
                     initialWt: m.wt,
                     initialHistory: m.history,
-                    initialWhiteTime: m.whiteTime,
-                    initialBlackTime: m.blackTime,
+                    initialWhiteTime: adjWt,
+                    initialBlackTime: adjBt,
                   })
                 } else {
                   navigate('game', {
@@ -398,8 +403,8 @@ export default function App() {
                     initialBoard: m.board,
                     initialWt: m.wt,
                     initialHistory: m.history,
-                    initialWhiteTime: m.whiteTime,
-                    initialBlackTime: m.blackTime,
+                    initialWhiteTime: adjWt,
+                    initialBlackTime: adjBt,
                   })
                 }
               }}>Вернуться</button>

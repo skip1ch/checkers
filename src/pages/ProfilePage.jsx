@@ -253,7 +253,7 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
             {nameToInitial(user?.name)}
           </span>
           {user?.avatar && (
-            <div style={{position:'absolute',inset:0,backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center'}}/>
+            <div style={{position:'absolute',inset:0,backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center',zIndex:2}}/>
           )}
           {session && <div className="avatar-edit-badge">{avatarSaving ? '…' : '✎'}</div>}
           <input ref={avatarInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange}/>
@@ -386,7 +386,7 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
                 >
                   <span className="emoji-select-char">{e.char}</span>
                   <span className="emoji-select-name">{e.name}</span>
-                  {isSelected && <span className="emoji-select-check">✓</span>}
+                  {isSelected && <span className="emoji-select-check">{selectedEmojis.indexOf(e.id) + 1}</span>}
                 </button>
               )
             })}

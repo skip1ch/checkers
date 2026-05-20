@@ -3,9 +3,20 @@ import { GL } from '../lib/gl'
 import { playSound } from '../lib/sound'
 import { sb } from '../lib/supabase'
 import { EMOJIS } from '../lib/themes'
+import { nameToColor, nameToInitial } from '../lib/avatar'
 import BoardView from '../components/BoardView'
 import GameInfoSidebar from '../components/GameInfoSidebar'
 import ConfirmModal from '../components/ConfirmModal'
+
+function TimerAvatar({ name, photo, dotClass }) {
+  if (photo) return <img src={photo} className="ptimer-avatar" alt=""/>
+  if (name) return (
+    <div className="ptimer-avatar" style={{background:nameToColor(name),display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:'.72rem',lineHeight:1}}>
+      {nameToInitial(name)}
+    </div>
+  )
+  return <div className={`ptimer-dot ${dotClass}`}/>
+}
 
 const LEVEL_LABEL = { easy: 'Лёгкий', medium: 'Средний', hard: 'Сложный' }
 const PLAYER_SECS = 300 // 5 minutes each
@@ -15,7 +26,7 @@ function fmtTime(s) {
 }
 
 export default function GamePage({
-  mode, level, roomCode, myColor, oppName, oppAvatar, myAvatar,
+  mode, level, roomCode, myColor, oppName, oppAvatar, myAvatar, myName,
   selectedEmojis = ['shush', 'wait', 'cry', 'lol', 'shake'],
   initialBoard, initialWt, initialHistory, initialWhiteTime, initialBlackTime,
   onMove, onGameEnd, navigate,
@@ -368,10 +379,7 @@ export default function GamePage({
           {/* Opponent timer — above board */}
           {isNonLocal ? (
             <div className={`ptimer-bar${oppIsActive ? ' active' : ''}${oppUrgent ? ' urgent' : oppWarn ? ' warn' : ''}`}>
-              {oppAvatar
-                ? <img src={oppAvatar} className="ptimer-avatar" alt=""/>
-                : <div className={`ptimer-dot ${oppDot}`}/>
-              }
+              <TimerAvatar name={oppName} photo={oppAvatar} dotClass={oppDot}/>
               <span className="ptimer-name">{oppLabel}</span>
               <span className="ptimer-time">{fmtTime(oppTime)}</span>
             </div>
@@ -398,10 +406,7 @@ export default function GamePage({
           {/* My timer — below board */}
           {isNonLocal && (
             <div className={`ptimer-bar ptimer-bar-mine${myIsActive ? ' active' : ''}${myUrgent ? ' urgent' : myWarn ? ' warn' : ''}`}>
-              {myAvatar
-                ? <img src={myAvatar} className="ptimer-avatar" alt=""/>
-                : <div className={`ptimer-dot ${myDot}`}/>
-              }
+              <TimerAvatar name={myName} photo={myAvatar} dotClass={myDot}/>
               <span className="ptimer-name">Вы</span>
               <span className="ptimer-time">{fmtTime(myTime)}</span>
             </div>

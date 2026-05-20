@@ -8,7 +8,7 @@ import GameInfoSidebar from '../components/GameInfoSidebar'
 import ConfirmModal from '../components/ConfirmModal'
 
 const LEVEL_LABEL = { easy: 'Лёгкий', medium: 'Средний', hard: 'Сложный' }
-const PLAYER_SECS = 420 // 7 minutes each
+const PLAYER_SECS = 300 // 5 minutes each
 
 function fmtTime(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -70,7 +70,7 @@ export default function GamePage({
     const updated = {
       ...saved, board: newBoard, wt: newWt, history: newHistory,
       whiteTime: whiteTimeRef.current, blackTime: blackTimeRef.current,
-      ts: Date.now(),
+      mode, level, ts: Date.now(),
     }
     localStorage.setItem('activeMatch', JSON.stringify(updated))
     clearTimeout(syncDebounce.current)
@@ -81,9 +81,12 @@ export default function GamePage({
 
   useEffect(() => {
     if (mode === 'friend' && roomCode) {
-      const entry = { roomCode, myColor, oppName: oppName || '', ts: Date.now() }
+      const entry = { roomCode, myColor, oppName: oppName || '', oppAvatar: oppAvatar || null, mode: 'friend', ts: Date.now() }
       localStorage.setItem('activeMatch', JSON.stringify(entry))
       onMove?.(entry)
+    } else if (mode === 'ai') {
+      const entry = { mode: 'ai', level: level || 'medium', ts: Date.now() }
+      localStorage.setItem('activeMatch', JSON.stringify(entry))
     }
     return () => { if (statsFiredRef.current) localStorage.removeItem('activeMatch') }
   }, [])
@@ -110,6 +113,14 @@ export default function GamePage({
 
   /* ── AI move ──────────────────────────────────────────── */
 
+  const AI_EMOJIS = {
+    bigCapture: ['😈','🔥','💪','😤'],
+    capture: ['😏','😎','🤌'],
+    king: ['👑','🎉','😏'],
+    losing: ['😤','🤔'],
+    neutral: ['🤔','🧐'],
+  }
+
   useEffect(() => {
     if (mode !== 'ai' || wt || gameResult) return
     setThinking(true)
@@ -119,13 +130,28 @@ export default function GamePage({
       setThinking(false)
       if (!mv) { setGameResult('W'); playSound('win'); return }
       if (mv.caps.length > 0) playSound('capture'); else playSound('move')
+      const wasKing = GL.isK(boardRef.current[mv.from[0]][mv.from[1]])
       const nb = GL.apply(boardRef.current, mv)
+      const becameKing = !wasKing && GL.isK(nb[mv.to[0]][mv.to[1]])
+      const newHist = [...historyRef.current, { from: mv.from, to: mv.to, caps: mv.caps, white: false }]
       setBoard(nb); setWt(true); setLastMove(mv)
       setSel(null); setSelMoves([])
       setAllMoves(GL.getMoves(nb, true))
-      setHistory(h => [...h, { from: mv.from, to: mv.to, caps: mv.caps, white: false }])
+      setHistory(newHist)
+      syncActiveMatch(nb, true, newHist)
       const winner = GL.checkWinner(nb, true)
       if (winner) setTimeout(() => { setGameResult(winner); playSound(winner === 'W' ? 'win' : 'lose') }, 300)
+      // AI emoji reaction
+      const emojiChance = becameKing ? 0.8 : mv.caps.length >= 2 ? 0.65 : mv.caps.length === 1 ? 0.28 : 0.07
+      if (Math.random() < emojiChance) {
+        let pool = becameKing ? AI_EMOJIS.king : mv.caps.length >= 2 ? AI_EMOJIS.bigCapture : mv.caps.length === 1 ? AI_EMOJIS.capture : AI_EMOJIS.neutral
+        const char = pool[Math.floor(Math.random() * pool.length)]
+        setTimeout(() => {
+          setOppEmoji({ char, key: Date.now() })
+          clearTimeout(floatTimer.current)
+          floatTimer.current = setTimeout(() => setOppEmoji(null), 2400)
+        }, delay * 0.6)
+      }
     }, delay)
     return () => clearTimeout(tid)
   }, [wt, gameResult])
@@ -214,6 +240,8 @@ export default function GamePage({
     if (mode === 'friend') {
       syncActiveMatch(nb, nwt, newHistory)
       chRef.current?.send({ type: 'broadcast', event: 'move', payload: { move: mv } })
+    } else if (mode === 'ai') {
+      syncActiveMatch(nb, nwt, newHistory)
     }
     const winner = GL.checkWinner(nb, nwt)
     if (winner) setTimeout(() => { setGameResult(winner); playSound(winner === 'W' ? 'win' : 'lose') }, 300)

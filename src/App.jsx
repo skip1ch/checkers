@@ -354,22 +354,39 @@ export default function App() {
       <main style={{ flex: 1 }}>
         {rejoinMatch && screen !== 'game' && (
           <div className="rejoin-banner">
-            <span>♟️ У вас есть активный матч с {rejoinMatch.oppName || 'другом'}!</span>
+            <span>
+              {rejoinMatch.mode === 'ai'
+                ? `♟️ Незавершённая партия с ИИ (${rejoinMatch.level === 'easy' ? 'Лёгкий' : rejoinMatch.level === 'hard' ? 'Сложный' : 'Средний'})!`
+                : `♟️ Активный матч с ${rejoinMatch.oppName || 'другом'}!`}
+            </span>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn-primary btn-sm" onClick={() => {
                 const m = rejoinMatch
                 setRejoinMatch(null)
-                navigate('game', {
-                  mode: 'friend',
-                  roomCode: m.roomCode,
-                  myColor: m.myColor,
-                  oppName: m.oppName,
-                  initialBoard: m.board,
-                  initialWt: m.wt,
-                  initialHistory: m.history,
-                  initialWhiteTime: m.whiteTime,
-                  initialBlackTime: m.blackTime,
-                })
+                if (m.mode === 'ai') {
+                  navigate('game', {
+                    mode: 'ai',
+                    level: m.level || 'medium',
+                    initialBoard: m.board,
+                    initialWt: m.wt,
+                    initialHistory: m.history,
+                    initialWhiteTime: m.whiteTime,
+                    initialBlackTime: m.blackTime,
+                  })
+                } else {
+                  navigate('game', {
+                    mode: 'friend',
+                    roomCode: m.roomCode,
+                    myColor: m.myColor,
+                    oppName: m.oppName,
+                    oppAvatar: m.oppAvatar,
+                    initialBoard: m.board,
+                    initialWt: m.wt,
+                    initialHistory: m.history,
+                    initialWhiteTime: m.whiteTime,
+                    initialBlackTime: m.blackTime,
+                  })
+                }
               }}>Вернуться</button>
               <button className="btn-ghost btn-sm" onClick={() => {
                 setRejoinMatch(null)

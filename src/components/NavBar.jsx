@@ -1,3 +1,5 @@
+import { nameToColor, nameToInitial } from '../lib/avatar'
+
 function GemIcon({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" style={{display:'inline-block',verticalAlign:'middle',flexShrink:0}}>
@@ -38,9 +40,12 @@ export default function NavBar({ screen, navigate, session, user, gems, onSignOu
               <button className="nav-user-btn" onClick={() => navigate('profile')} title="Профиль">
                 <span
                   className="nav-user-avatar"
-                  style={user?.avatar ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}
+                  style={user?.avatar
+                    ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center',background:'none'}
+                    : {background: nameToColor(user?.name)}
+                  }
                 >
-                  {!user?.avatar && (user?.name || 'И')[0].toUpperCase()}
+                  {!user?.avatar && <span style={{color:'#fff',fontWeight:700,fontSize:'.85rem',lineHeight:1}}>{nameToInitial(user?.name)}</span>}
                 </span>
                 <span className="nav-user-name">{user?.name || 'Игрок'}</span>
               </button>

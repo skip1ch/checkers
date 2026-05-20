@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Chart from 'chart.js/auto'
 import { THEMES, EMOJIS, applyTheme } from '../lib/themes'
+import { nameToColor, nameToInitial } from '../lib/avatar'
 import { sb } from '../lib/supabase'
 
 function GemIcon({ size = 16 }) {
@@ -246,9 +247,12 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
           className={`profile-avatar${session ? ' profile-avatar-editable' : ''}`}
           onClick={() => session && avatarInputRef.current?.click()}
           title={session ? 'Изменить аватарку' : ''}
-          style={user?.avatar ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}
+          style={user?.avatar
+            ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center',background:'none'}
+            : {background: nameToColor(user?.name)}
+          }
         >
-          {!user?.avatar && getInitials(user?.name)}
+          {!user?.avatar && <span style={{color:'#fff',fontFamily:"'Playfair Display',serif",fontSize:'2rem',fontWeight:700,lineHeight:1}}>{nameToInitial(user?.name)}</span>}
           {session && <div className="avatar-edit-badge">{avatarSaving ? '…' : '✎'}</div>}
           <input ref={avatarInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange}/>
         </div>

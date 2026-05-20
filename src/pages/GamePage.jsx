@@ -15,7 +15,7 @@ function fmtTime(s) {
 }
 
 export default function GamePage({
-  mode, level, roomCode, myColor, oppName, oppAvatar,
+  mode, level, roomCode, myColor, oppName, oppAvatar, myAvatar,
   selectedEmojis = ['shush', 'wait', 'cry', 'lol', 'shake'],
   initialBoard, initialWt, initialHistory, initialWhiteTime, initialBlackTime,
   onMove, onGameEnd, navigate,
@@ -398,7 +398,10 @@ export default function GamePage({
           {/* My timer — below board */}
           {isNonLocal && (
             <div className={`ptimer-bar ptimer-bar-mine${myIsActive ? ' active' : ''}${myUrgent ? ' urgent' : myWarn ? ' warn' : ''}`}>
-              <div className={`ptimer-dot ${myDot}`}/>
+              {myAvatar
+                ? <img src={myAvatar} className="ptimer-avatar" alt=""/>
+                : <div className={`ptimer-dot ${myDot}`}/>
+              }
               <span className="ptimer-name">Вы</span>
               <span className="ptimer-time">{fmtTime(myTime)}</span>
             </div>

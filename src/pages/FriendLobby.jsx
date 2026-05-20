@@ -8,6 +8,8 @@ export default function FriendLobby({ navigate, user, screenParams }) {
   const [status, setStatus] = useState('')
   const [copied, setCopied] = useState(false)
   const chRef = useRef(null)
+  const userRef = useRef(user)
+  useEffect(() => { userRef.current = user }, [user])
 
   useEffect(() => {
     if (screenParams?.autoJoin) joinRoom(screenParams.autoJoin)
@@ -23,7 +25,7 @@ export default function FriendLobby({ navigate, user, screenParams }) {
     ch.on('broadcast', {event:'guest-join'}, ({payload}) => {
       setStatus('Соперник подключился!')
       setTimeout(() => {
-        ch.send({type:'broadcast', event:'start', payload:{hostName:user?.name||'Хозяин', hostAvatar:user?.avatar||null}})
+        ch.send({type:'broadcast', event:'start', payload:{hostName:userRef.current?.name||'Хозяин', hostAvatar:userRef.current?.avatar||null}})
         navigate('game', { mode:'friend', myColor:'w', roomCode:c, oppName:payload.name, oppAvatar:payload.avatar||null })
       }, 800)
     })
@@ -41,7 +43,7 @@ export default function FriendLobby({ navigate, user, screenParams }) {
     })
     ch.subscribe(s => {
       if (s==='SUBSCRIBED') {
-        ch.send({type:'broadcast', event:'guest-join', payload:{name:user?.name||'Гость', avatar:user?.avatar||null}})
+        ch.send({type:'broadcast', event:'guest-join', payload:{name:userRef.current?.name||'Гость', avatar:userRef.current?.avatar||null}})
         setStatus('Ожидание подтверждения…')
       }
     })

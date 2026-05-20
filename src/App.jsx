@@ -439,6 +439,7 @@ export default function App() {
             myColor={screenParams.myColor || 'w'}
             oppName={screenParams.oppName}
             oppAvatar={screenParams.oppAvatar}
+            myAvatar={user?.avatar || null}
             selectedEmojis={selectedEmojis.length > 0 ? selectedEmojis : DEFAULT_EMOJIS}
             initialBoard={screenParams.initialBoard}
             initialWt={screenParams.initialWt}

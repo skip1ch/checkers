@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Chart from 'chart.js/auto'
-import { THEMES, EMOJIS } from '../lib/themes'
+import { THEMES, EMOJIS, applyTheme } from '../lib/themes'
 import { sb } from '../lib/supabase'
 
 function GemIcon({ size = 16 }) {
@@ -64,7 +64,7 @@ function getInitials(name) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, userWins, gamesPlayed, totalCaptures, onSignOut, onRename, onUpdateAvatar, onViewReplay }) {
+export default function ProfilePage({ navigate, session, user, gems, trophies = 0, ownedThemes, ownedEmojis = [], selectedEmojis = [], onToggleEmoji, activeThemeId, onApplyTheme, userWins, gamesPlayed, totalCaptures, onSignOut, onRename, onUpdateAvatar, onViewReplay }) {
   const radarRef = useRef(null)
   const donutRef = useRef(null)
   const radarChart = useRef(null)
@@ -246,11 +246,9 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
           className={`profile-avatar${session ? ' profile-avatar-editable' : ''}`}
           onClick={() => session && avatarInputRef.current?.click()}
           title={session ? 'Изменить аватарку' : ''}
+          style={user?.avatar ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}
         >
-          {user?.avatar
-            ? <img src={user.avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/>
-            : getInitials(user?.name)
-          }
+          {!user?.avatar && getInitials(user?.name)}
           {session && <div className="avatar-edit-badge">{avatarSaving ? '…' : '✎'}</div>}
           <input ref={avatarInputRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleAvatarChange}/>
         </div>
@@ -334,25 +332,31 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
 
       {/* ── Themes ── */}
       <div className="profile-themes">
-        <div className="profile-themes-title">Мои темы ({ownedThemeObjs.length}/{THEMES.length})</div>
-        <div className="profile-themes-grid">
-          {ownedThemeObjs.map(theme => (
-            <div key={theme.id} className="profile-theme-chip" style={activeThemeId===theme.id?{borderColor:'var(--primary)',background:'rgba(107,68,35,0.07)'}:{}}>
-              <div style={{display:'flex',gap:3,borderRadius:4,overflow:'hidden'}}>
-                {theme.preview.map((c,i) => <div key={i} style={{width:14,height:14,background:c}}/>)}
-              </div>
-              <span>{theme.name}</span>
-              {activeThemeId===theme.id && <span style={{fontSize:'.6rem',color:'var(--primary)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}}>✓</span>}
-            </div>
+        <div className="profile-themes-title">
+          Тема оформления
+          <button className="btn-ghost btn-sm" style={{marginLeft:'auto',fontSize:'.72rem'}} onClick={() => navigate('shop')}>Больше тем →</button>
+        </div>
+        <div className="post-theme-pills" style={{flexWrap:'wrap',gap:8}}>
+          {THEMES.filter(t => ownedThemes?.includes(t.id)).map(t => (
+            <button
+              key={t.id}
+              className={`post-theme-pill${activeThemeId === t.id ? ' active' : ''}`}
+              onClick={() => onApplyTheme?.(t.id)}
+            >
+              <span className="post-theme-swatch" style={{background:`linear-gradient(135deg,${t.preview[0]} 50%,${t.preview[1]} 50%)`}}/>
+              {t.name}
+            </button>
           ))}
-          {THEMES.filter(t => !ownedThemes?.includes(t.id)).slice(0,2).map(theme => (
-            <div key={theme.id} className="profile-theme-chip" style={{opacity:0.45,cursor:'pointer'}} onClick={() => navigate('shop')}>
-              <div style={{display:'flex',gap:3,borderRadius:4,overflow:'hidden',filter:'grayscale(1)'}}>
-                {theme.preview.map((c,i) => <div key={i} style={{width:14,height:14,background:c}}/>)}
-              </div>
-              <span>{theme.name}</span>
-              <span style={{fontSize:'.65rem',color:'var(--text3)'}}>🔒</span>
-            </div>
+          {THEMES.filter(t => !ownedThemes?.includes(t.id)).slice(0, 3).map(t => (
+            <button
+              key={t.id}
+              className="post-theme-pill"
+              style={{opacity:0.45}}
+              onClick={() => navigate('shop')}
+            >
+              <span className="post-theme-swatch" style={{background:`linear-gradient(135deg,${t.preview[0]} 50%,${t.preview[1]} 50%)`,filter:'grayscale(1)'}}/>
+              {t.name} 🔒
+            </button>
           ))}
         </div>
       </div>

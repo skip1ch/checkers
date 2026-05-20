@@ -63,8 +63,6 @@ export default function App() {
     const localWins = parseInt(localStorage.getItem('wins') || '0')
     const localGamesPlayed = parseInt(localStorage.getItem('games_played') || '0')
     const localTotalCaptures = parseInt(localStorage.getItem('total_captures') || '0')
-    const localAvatar = localStorage.getItem('user_avatar')
-    if (localAvatar) setUser(u => ({ ...u, avatar: localAvatar }))
     setGems(localGems); setTrophies(localTrophies); setOwnedThemes(localThemes)
     const OLD_DEFAULTS = ['thumb', 'heart', 'smile', 'fire']
     const isOldDefault = localEmojis.length === 4 && OLD_DEFAULTS.every(id => localEmojis.includes(id))
@@ -302,7 +300,7 @@ export default function App() {
     }
 
     if (result.showReplay) {
-      setGameResult({ ...result, gemsEarned })
+      setGameResult({ ...result, gemsEarned, trophiesEarned })
       setScreen('postgame'); window.scrollTo(0, 0)
     }
   }
@@ -426,7 +424,8 @@ export default function App() {
             userWins={userWins} gamesPlayed={gamesPlayed} totalCaptures={totalCaptures}
             onSignOut={() => setShowSignOutModal(true)}
             onRename={name => setUser(u => ({ ...u, name }))}
-            onUpdateAvatar={url => { setUser(u => ({ ...u, avatar: url })); localStorage.setItem('user_avatar', url) }}
+            onUpdateAvatar={url => setUser(u => ({ ...u, avatar: url }))}
+            onApplyTheme={tid => { applyTheme(tid); setActiveThemeId(tid); localStorage.setItem('theme', tid) }}
             onViewReplay={handleViewReplay}
           />
         )}
@@ -435,11 +434,7 @@ export default function App() {
 
         {screen === 'postgame' && (
           <ErrorBoundary>
-            <PostGamePage
-              result={gameResult} navigate={navigate}
-              ownedThemes={ownedThemes} activeThemeId={activeThemeId}
-              onApplyTheme={tid => { applyTheme(tid); setActiveThemeId(tid); localStorage.setItem('theme', tid) }}
-            />
+            <PostGamePage result={gameResult} navigate={navigate} />
           </ErrorBoundary>
         )}
       </main>

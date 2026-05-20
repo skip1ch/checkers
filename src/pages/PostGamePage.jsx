@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { GL } from '../lib/gl'
 import { generateReview, calcScore } from '../lib/analysis'
-import { THEMES as ALL_THEMES } from '../lib/themes'
 import MiniBoard from '../components/MiniBoard'
 import CaptureChart from '../components/CaptureChart'
 
-export default function PostGamePage({ result, navigate, ownedThemes = [], activeThemeId, onApplyTheme }) {
-  const { winner, history=[], mode='ai', level='medium', timer=0, gemsEarned=0, myColor='w' } = result||{}
+export default function PostGamePage({ result, navigate }) {
+  const { winner, history=[], mode='ai', level='medium', timer=0, gemsEarned=0, trophiesEarned=0, myColor='w' } = result||{}
   const isDraw = winner === 'DRAW'
   const won = isDraw ? false : (mode === 'local' ? winner === 'W' : (winner === 'W') === (myColor === 'w'))
   const iAm = mode !== 'friend' || myColor === 'w'
@@ -76,6 +75,11 @@ export default function PostGamePage({ result, navigate, ownedThemes = [], activ
         {isDraw && <span className="post-icon">🤝</span>}
         <h1 className="post-title">{isDraw ? 'Ничья' : won ? 'Победа!' : 'Поражение'}</h1>
         <p className="post-sub">{moves} ходов · {fmt(timer)}</p>
+        {trophiesEarned !== 0 && (
+          <div className={`postgame-trophy-badge${trophiesEarned > 0 ? ' positive' : ' negative'}`}>
+            {trophiesEarned > 0 ? `+${trophiesEarned}` : trophiesEarned} 🏆
+          </div>
+        )}
         {gemsEarned > 0 && (
           <div className="gems-earned">
             <svg width="16" height="16" viewBox="0 0 20 20" style={{flexShrink:0}}>
@@ -89,25 +93,6 @@ export default function PostGamePage({ result, navigate, ownedThemes = [], activ
           </div>
         )}
       </div>
-
-      {ownedThemes.length > 0 && onApplyTheme && (
-        <div className="post-theme-bar">
-          <span className="post-theme-label">Тема</span>
-          <div className="post-theme-pills">
-            {ALL_THEMES.filter(t => ownedThemes.includes(t.id)).map(t => (
-              <button
-                key={t.id}
-                className={`post-theme-pill${activeThemeId === t.id ? ' active' : ''}`}
-                onClick={() => onApplyTheme(t.id)}
-                title={t.name}
-              >
-                <span className="post-theme-swatch" style={{background:`linear-gradient(135deg,${t.preview[0]} 50%,${t.preview[1]} 50%)`}}/>
-                {t.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="post-score-card">
         <div className="score-label">

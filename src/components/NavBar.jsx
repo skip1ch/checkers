@@ -36,11 +36,11 @@ export default function NavBar({ screen, navigate, session, user, gems, onSignOu
           {session ? (
             <>
               <button className="nav-user-btn" onClick={() => navigate('profile')} title="Профиль">
-                <span className="nav-user-avatar">
-                  {user?.avatar
-                    ? <img src={user.avatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}}/>
-                    : (user?.name || 'И')[0].toUpperCase()
-                  }
+                <span
+                  className="nav-user-avatar"
+                  style={user?.avatar ? {backgroundImage:`url(${user.avatar})`,backgroundSize:'cover',backgroundPosition:'center'} : {}}
+                >
+                  {!user?.avatar && (user?.name || 'И')[0].toUpperCase()}
                 </span>
                 <span className="nav-user-name">{user?.name || 'Игрок'}</span>
               </button>

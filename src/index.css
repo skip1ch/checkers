@@ -149,10 +149,10 @@ a{color:inherit;text-decoration:none;}
 .level-btn-primary{background:var(--primary);color:#fff;}
 .level-btn-primary:hover{background:var(--primary-d);}
 
-.game-page{max-width:1200px;margin:0 auto;padding:32px 20px 60px;}
-.game-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
-.game-header-left p{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-weight:600;}
-.game-header-left h1{font-size:clamp(1.6rem,3vw,2rem);font-weight:700;}
+.game-page{max-width:1200px;margin:0 auto;padding:16px 20px 12px;}
+.game-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.game-header-left p{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-weight:600;}
+.game-header-left h1{font-size:clamp(1.25rem,2.5vw,1.6rem);font-weight:700;margin:0;}
 .game-header-btns{display:flex;gap:8px;}
 /* Per-player timers (local mode: side-by-side) */
 @keyframes pulse-border{0%,100%{border-color:rgba(192,57,43,0.6);}50%{border-color:rgba(192,57,43,1);}}
@@ -185,7 +185,7 @@ a{color:inherit;text-decoration:none;}
 .board-col{display:flex;flex-direction:column;min-width:0;}
 
 .board-area{display:flex;justify-content:center;}
-.board-wrap{position:relative;width:100%;max-width:560px;aspect-ratio:1/1;}
+.board-wrap{position:relative;width:100%;max-width:min(calc(100vh - 290px), 520px);aspect-ratio:1/1;}
 .board-frame{position:absolute;inset:0;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.3),0 0 0 1px rgba(43,24,16,0.1);}
 .board-inner{position:absolute;inset:14px;border-radius:8px;overflow:hidden;box-shadow:inset 0 2px 8px rgba(0,0,0,0.3);}
 .board-grid{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%;}
@@ -361,13 +361,14 @@ a{color:inherit;text-decoration:none;}
   .navbar-right{gap:6px;}
   .nav-gems{padding:4px 8px;font-size:.75rem;}
   .btn-ghost.btn-sm{display:none;}
-  /* Game page */
-  .game-page{padding:12px 8px 40px;}
-  .board-wrap{max-width:100%;}
-  .game-title{font-size:1.1rem;}
-  .game-sub{font-size:.75rem;}
-  .emoji-panel{padding:8px 0 2px;gap:6px;}
-  .emoji-btn{width:38px;height:38px;font-size:1.3rem;}
+  /* Game page mobile — fit everything on one screen */
+  .game-page{padding:8px 8px 8px;}
+  .game-header{margin-bottom:6px;}
+  .game-header-left h1{font-size:1.1rem;}
+  .board-wrap{max-width:min(calc(100vh - 230px), calc(100vw - 16px));}
+  .emoji-panel{padding:6px 0 2px;gap:4px;}
+  .emoji-btn{height:42px;font-size:1.35rem;}
+  .ptimer-bar{padding:5px 10px;}
   /* PostGame mobile */
   .post-page{padding:20px 12px 60px;}
   .post-title{font-size:1.8rem;}
@@ -476,6 +477,9 @@ a{color:inherit;text-decoration:none;}
 .emoji-btn:active{transform:scale(0.88);box-shadow:none;}
 
 /* Post-game gems earned */
+.postgame-trophy-badge{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:6px 18px;font-size:1rem;font-weight:800;margin-top:8px;}
+.postgame-trophy-badge.positive{background:rgba(201,162,39,0.12);border:1.5px solid rgba(201,162,39,0.4);color:#8a6a00;}
+.postgame-trophy-badge.negative{background:rgba(192,57,43,0.08);border:1.5px solid rgba(192,57,43,0.3);color:var(--red);}
 .gems-earned{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(41,182,246,0.12),rgba(2,119,189,0.08));border:1.5px solid rgba(41,182,246,0.3);border-radius:99px;padding:6px 16px;font-size:.9rem;font-weight:700;color:#0277bd;margin-top:8px;}
 
 @media(max-width:900px){.theme-grid{grid-template-columns:repeat(2,1fr);}.gems-grid{grid-template-columns:repeat(2,1fr);}}
@@ -484,10 +488,10 @@ a{color:inherit;text-decoration:none;}
 /* ── Profile page ── */
 .profile-page{max-width:960px;margin:0 auto;padding:48px 20px 80px;}
 .profile-hero{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:32px;display:flex;align-items:center;gap:28px;margin-bottom:24px;box-shadow:0 2px 12px rgba(107,68,35,0.06);}
-.profile-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#6b4423,#c9a227);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;box-shadow:0 4px 20px rgba(107,68,35,0.3);flex-shrink:0;overflow:hidden;position:relative;}
+.profile-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,#6b4423,#c9a227);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;box-shadow:0 4px 20px rgba(107,68,35,0.3);flex-shrink:0;position:relative;overflow:hidden;}
 .profile-avatar-editable{cursor:pointer;}
 .profile-avatar-editable:hover .avatar-edit-badge{opacity:1;}
-.avatar-edit-badge{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);color:#fff;font-size:.65rem;text-align:center;padding:3px 0;opacity:0;transition:opacity .18s;}
+.avatar-edit-badge{position:absolute;inset:auto 0 0;background:rgba(0,0,0,0.52);color:#fff;font-size:.68rem;text-align:center;padding:4px 0;opacity:0;transition:opacity .18s;pointer-events:none;}
 .profile-info{flex:1;min-width:0;}
 .profile-name{font-size:1.6rem;font-weight:700;margin-bottom:2px;}
 .profile-email{font-size:.82rem;color:var(--text3);margin-bottom:6px;}
@@ -502,7 +506,7 @@ a{color:inherit;text-decoration:none;}
 .profile-chart-title{font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:16px;}
 .profile-chart-wrap{position:relative;height:260px;overflow:hidden;}
 .profile-themes{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;margin-bottom:24px;}
-.profile-themes-title{font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
+.profile-themes-title{font-size:.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;}
 .profile-themes-grid{display:flex;gap:10px;flex-wrap:wrap;}
 .profile-theme-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;font-size:.78rem;font-weight:600;}
 .profile-theme-dot{width:14px;height:14px;border-radius:3px;}

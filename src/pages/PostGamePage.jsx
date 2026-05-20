@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { GL } from '../lib/gl'
 import { generateReview, calcScore } from '../lib/analysis'
+import { THEMES as ALL_THEMES } from '../lib/themes'
 import MiniBoard from '../components/MiniBoard'
 import CaptureChart from '../components/CaptureChart'
 
-export default function PostGamePage({ result, navigate }) {
+export default function PostGamePage({ result, navigate, ownedThemes = [], activeThemeId, onApplyTheme }) {
   const { winner, history=[], mode='ai', level='medium', timer=0, gemsEarned=0, myColor='w' } = result||{}
   const isDraw = winner === 'DRAW'
   const won = isDraw ? false : (mode === 'local' ? winner === 'W' : (winner === 'W') === (myColor === 'w'))
@@ -88,6 +89,25 @@ export default function PostGamePage({ result, navigate }) {
           </div>
         )}
       </div>
+
+      {ownedThemes.length > 0 && onApplyTheme && (
+        <div className="post-theme-bar">
+          <span className="post-theme-label">Тема</span>
+          <div className="post-theme-pills">
+            {ALL_THEMES.filter(t => ownedThemes.includes(t.id)).map(t => (
+              <button
+                key={t.id}
+                className={`post-theme-pill${activeThemeId === t.id ? ' active' : ''}`}
+                onClick={() => onApplyTheme(t.id)}
+                title={t.name}
+              >
+                <span className="post-theme-swatch" style={{background:`linear-gradient(135deg,${t.preview[0]} 50%,${t.preview[1]} 50%)`}}/>
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="post-score-card">
         <div className="score-label">

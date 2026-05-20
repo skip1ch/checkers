@@ -319,11 +319,11 @@ export default function ProfilePage({ navigate, session, user, gems, trophies = 
           <div className="profile-themes-title">
             Эмодзи-панель
             <span style={{fontWeight:400,color:'var(--text3)',fontSize:'.8rem',marginLeft:8}}>
-              {selectedEmojis.length}/7 выбрано
+              {selectedEmojis.length}/5 выбрано
             </span>
           </div>
           <p style={{fontSize:'.78rem',color:'var(--text3)',marginBottom:12,marginTop:-4}}>
-            Выбери до 7 эмодзи для использования в игре с другом
+            Выбери 5 эмодзи для использования в игре
           </p>
           <div className="emoji-select-grid">
             {EMOJIS.filter(e => ownedEmojis.includes(e.id)).map(e => {

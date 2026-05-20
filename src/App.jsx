@@ -42,7 +42,7 @@ export default function App() {
   const [trophies, setTrophies] = useState(0)
   const [ownedThemes, setOwnedThemes] = useState(['classic', 'night', 'emerald'])
   const [ownedEmojis, setOwnedEmojis] = useState(DEFAULT_EMOJIS)
-  const [selectedEmojis, setSelectedEmojis] = useState(DEFAULT_EMOJIS)
+  const [selectedEmojis, setSelectedEmojis] = useState(DEFAULT_EMOJIS.slice(0, 5))
   const [activeThemeId, setActiveThemeId] = useState(() => getSavedTheme())
   const [userWins, setUserWins] = useState(0)
   const [gamesPlayed, setGamesPlayed] = useState(0)
@@ -202,7 +202,7 @@ export default function App() {
     setSelectedEmojis(prev => {
       let next
       if (prev.includes(eid)) { next = prev.filter(id => id !== eid) }
-      else if (prev.length >= 7) { next = [...prev.slice(1), eid] }
+      else if (prev.length >= 5) { next = [...prev.slice(1), eid] }
       else { next = [...prev, eid] }
       localStorage.setItem('selectedEmojis', JSON.stringify(next))
       return next
@@ -365,7 +365,8 @@ export default function App() {
                   initialBoard: m.board,
                   initialWt: m.wt,
                   initialHistory: m.history,
-                  initialTimer: m.timer,
+                  initialWhiteTime: m.whiteTime,
+                  initialBlackTime: m.blackTime,
                 })
               }}>Вернуться</button>
               <button className="btn-ghost btn-sm" onClick={() => {
@@ -402,7 +403,8 @@ export default function App() {
             initialBoard={screenParams.initialBoard}
             initialWt={screenParams.initialWt}
             initialHistory={screenParams.initialHistory}
-            initialTimer={screenParams.initialTimer}
+            initialWhiteTime={screenParams.initialWhiteTime}
+            initialBlackTime={screenParams.initialBlackTime}
             onMove={handleMatchMove}
             onGameEnd={handleGameEnd}
             navigate={navigate}
@@ -427,7 +429,11 @@ export default function App() {
 
         {screen === 'postgame' && (
           <ErrorBoundary>
-            <PostGamePage result={gameResult} navigate={navigate} />
+            <PostGamePage
+              result={gameResult} navigate={navigate}
+              ownedThemes={ownedThemes} activeThemeId={activeThemeId}
+              onApplyTheme={tid => { applyTheme(tid); setActiveThemeId(tid); localStorage.setItem('theme', tid) }}
+            />
           </ErrorBoundary>
         )}
       </main>

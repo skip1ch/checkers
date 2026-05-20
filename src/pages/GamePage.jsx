@@ -9,12 +9,17 @@ import GameInfoSidebar from '../components/GameInfoSidebar'
 import ConfirmModal from '../components/ConfirmModal'
 
 function TimerAvatar({ name, photo, dotClass }) {
-  if (photo) return <img src={photo} className="ptimer-avatar" alt=""/>
-  if (name) return (
-    <div className="ptimer-avatar" style={{background:nameToColor(name),display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:'.72rem',lineHeight:1}}>
-      {nameToInitial(name)}
-    </div>
-  )
+  const [broken, setBroken] = useState(false)
+  if (photo && !broken) {
+    return <img src={photo} className="ptimer-avatar" alt="" onError={() => setBroken(true)}/>
+  }
+  if (name) {
+    return (
+      <div className="ptimer-avatar" style={{background:nameToColor(name),display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:'.72rem',lineHeight:1,flexShrink:0}}>
+        {nameToInitial(name)}
+      </div>
+    )
+  }
   return <div className={`ptimer-dot ${dotClass}`}/>
 }
 
